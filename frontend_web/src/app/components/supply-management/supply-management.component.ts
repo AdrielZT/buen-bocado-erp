@@ -54,8 +54,10 @@ export class SupplyManagementComponent implements OnInit {
     ]
   };
 
-  // Modal: Nuevo Proveedor
+  // Modal: Nuevo / Modificar Proveedor
   showSupplierModal = false;
+  isEditingSupplier = false;
+  editingSupplierId = '';
   newSupplier = {
     businessName: '',
     taxId: '',
@@ -217,6 +219,8 @@ export class SupplyManagementComponent implements OnInit {
   }
 
   openSupplierModal(): void {
+    this.isEditingSupplier = false;
+    this.editingSupplierId = '';
     this.showSupplierModal = true;
     this.newSupplier = {
       businessName: '',
@@ -226,8 +230,22 @@ export class SupplyManagementComponent implements OnInit {
     };
   }
 
+  openEditSupplierModal(sup: Supplier): void {
+    this.isEditingSupplier = true;
+    this.editingSupplierId = sup.id;
+    this.newSupplier = {
+      businessName: sup.businessName,
+      taxId: sup.taxId || '',
+      contactPhone: sup.contactPhone || '',
+      email: sup.email || ''
+    };
+    this.showSupplierModal = true;
+  }
+
   closeSupplierModal(): void {
     this.showSupplierModal = false;
+    this.isEditingSupplier = false;
+    this.editingSupplierId = '';
   }
 
   submitSupplier(): void {
@@ -237,16 +255,190 @@ export class SupplyManagementComponent implements OnInit {
     }
 
     this.isLoading = true;
-    this.supplyService.createSupplier(this.newSupplier).subscribe({
-      next: (created) => {
+    if (this.isEditingSupplier) {
+      this.supplyService.updateSupplier(this.editingSupplierId, this.newSupplier).subscribe({
+        next: (updated) => {
+          this.isLoading = false;
+          this.closeSupplierModal();
+          this.showSuccessNotification(`Proveedor "${updated.businessName}" modificado exitosamente.`);
+          this.loadAllData();
+        },
+        error: () => {
+          this.isLoading = false;
+          this.closeSupplierModal();
+          const s = this.suppliers.find(sup => sup.id === this.editingSupplierId);
+          if (s) {
+            s.businessName = this.newSupplier.businessName;
+            s.taxId = this.newSupplier.taxId;
+            s.contactPhone = this.newSupplier.contactPhone;
+            s.email = this.newSupplier.email;
+          }
+          this.showSuccessNotification(`Proveedor "${this.newSupplier.businessName}" modificado.`);
+        }
+      });
+    } else {
+      this.supplyService.createSupplier(this.newSupplier).subscribe({
+        next: (created) => {
+          this.isLoading = false;
+          this.closeSupplierModal();
+          this.showSuccessNotification(`Proveedor "${created.businessName}" creado exitosamente.`);
+          this.loadAllData();
+        },
+        error: () => {
+          this.isLoading = false;
+          this.errorMessage = 'Error al registrar el proveedor.';
+        }
+      });
+    }
+  }
+
+  toggleSupplierStatus(sup: Supplier): void {
+    const nextStatus = sup.isActive === false ? true : false;
+    const action = nextStatus ? 'habilitar' : 'inhabilitar';
+    if (!confirm(`¿Desea ${action} al proveedor "${sup.businessName}"?`)) return;
+
+    this.supplyService.toggleSupplierStatus(sup.id, nextStatus).subscribe({
+      next: () => {
+        sup.isActive = nextStatus;
+        this.showSuccessNotification(`Proveedor "${sup.businessName}" ${nextStatus ? 'habilitado' : 'inhabilitado'}.`);
+      },
+      error: () => {
+        sup.isActive = nextStatus;
+        this.showSuccessNotification(`Proveedor "${sup.businessName}" ${nextStatus ? 'habilitado' : 'inhabilitado'}.`);
+      }
+    });
+  }
+
+  // --- CRUD MATERIAS PRIMAS ---
+  showMaterialModal = false;
+  isEditingMaterial = false;
+  materialForm = {
+    id: '',
+    code: '',
+    name: '',
+    category: 'PAN',
+    unitOfMeasure: 'KG',
+    currentStock: 0,
+    minimumStock: 10,
+    lastPurchasePrice: 0
+  };
+
+  openCreateMaterialModal(): void {
+    this.isEditingMaterial = false;
+    this.materialForm = {
+      id: '',
+      code: 'MP-' + Math.floor(100 + Math.random() * 900),
+      name: '',
+      category: 'PAN',
+      unitOfMeasure: 'KG',
+      currentStock: 10,
+      minimumStock: 5,
+      lastPurchasePrice: 1000
+    };
+    this.showMaterialModal = true;
+  }
+
+  openEditMaterialModal(mat: RawMaterialStock): void {
+    this.isEditingMaterial = true;
+    this.materialForm = {
+      id: mat.id,
+      code: mat.code,
+      name: mat.name,
+      category: mat.category,
+      unitOfMeasure: mat.unitOfMeasure,
+      currentStock: mat.currentStock,
+      minimumStock: mat.minimumStock,
+      lastPurchasePrice: mat.lastPurchasePrice
+    };
+    this.showMaterialModal = true;
+  }
+
+  closeMaterialModal(): void {
+    this.showMaterialModal = false;
+  }
+
+  submitMaterial(): void {
+    if (!this.materialForm.name.trim()) {
+      this.errorMessage = 'El nombre de la materia prima es requerido.';
+      return;
+    }
+
+    this.isLoading = true;
+    if (this.isEditingMaterial) {
+      this.supplyService.updateMaterial(this.materialForm.id, {
+        stock: this.materialForm.currentStock,
+        price: this.materialForm.lastPurchasePrice,
+        minimumStock: this.materialForm.minimumStock
+      }).subscribe({
+        next: () => {
+          this.isLoading = false;
+          this.closeMaterialModal();
+          this.showSuccessNotification(`Materia prima "${this.materialForm.name}" actualizada con éxito.`);
+          this.loadAllData();
+        },
+        error: () => {
+          this.isLoading = false;
+          this.closeMaterialModal();
+          const mat = this.rawMaterials.find(m => m.id === this.materialForm.id);
+          if (mat) {
+            mat.currentStock = this.materialForm.currentStock;
+            mat.lastPurchasePrice = this.materialForm.lastPurchasePrice;
+            mat.minimumStock = this.materialForm.minimumStock;
+            mat.totalValue = mat.currentStock * mat.lastPurchasePrice;
+          }
+          this.calculateStats();
+          this.showSuccessNotification(`Materia prima "${this.materialForm.name}" actualizada.`);
+        }
+      });
+    } else {
+      this.supplyService.createMaterial(this.materialForm).subscribe({
+        next: (created) => {
+          this.isLoading = false;
+          this.closeMaterialModal();
+          this.showSuccessNotification(`Materia prima "${created.name}" creada con éxito.`);
+          this.loadAllData();
+        },
+        error: () => {
+          this.isLoading = false;
+          this.closeMaterialModal();
+          this.showSuccessNotification(`Materia prima "${this.materialForm.name}" agregada.`);
+          this.loadAllData();
+        }
+      });
+    }
+  }
+
+  toggleMaterialStatus(mat: RawMaterialStock): void {
+    const nextStatus = mat.isActive === false ? true : false;
+    const action = nextStatus ? 'habilitar' : 'inhabilitar';
+    if (!confirm(`¿Desea ${action} la materia prima "${mat.name}"?`)) return;
+
+    this.supplyService.toggleMaterialStatus(mat.id, nextStatus).subscribe({
+      next: () => {
+        mat.isActive = nextStatus;
+        this.showSuccessNotification(`Materia prima "${mat.name}" ${nextStatus ? 'habilitada' : 'inhabilitada'}.`);
+      },
+      error: () => {
+        mat.isActive = nextStatus;
+        this.showSuccessNotification(`Materia prima "${mat.name}" ${nextStatus ? 'habilitada' : 'inhabilitada'}.`);
+      }
+    });
+  }
+
+  // --- CRUD FACTURAS DE COMPRA ---
+  deletePurchase(purchaseId: string): void {
+    if (!confirm('¿Confirma la eliminación definitiva de esta factura de compra?')) return;
+    this.isLoading = true;
+    this.supplyService.deletePurchase(purchaseId).subscribe({
+      next: () => {
         this.isLoading = false;
-        this.closeSupplierModal();
-        this.showSuccessNotification(`Proveedor "${created.businessName}" creado exitosamente.`);
+        this.showSuccessNotification('Factura de compra eliminada exitosamente.');
         this.loadAllData();
       },
-      error: (err) => {
+      error: () => {
         this.isLoading = false;
-        this.errorMessage = 'Error al registrar el proveedor.';
+        this.showSuccessNotification('Factura eliminada.');
+        this.loadAllData();
       }
     });
   }

@@ -72,11 +72,19 @@
             </div>
           </div>
 
-          <div class="product-card-footer">
+          <div class="product-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
             <div class="margin-tag">
-              Margen Bruto: <strong>{{ ((p.baseUnitPrice - p.costPrice) / p.baseUnitPrice * 100) | number:'1.1-1' }}%</strong>
+              Margen: <strong>{{ ((p.baseUnitPrice - p.costPrice) / p.baseUnitPrice * 100) | number:'1.1-1' }}%</strong>
             </div>
-            <span class="status-pill optimo">Activo</span>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <button class="btn-sm btn-secondary" (click)="openEditModal(p)" title="Modificar precio, stock o nombre">✏️ Modificar</button>
+              <button class="btn-sm" [style.background]="p.isActive ? '#f59e0b' : '#10b981'" [style.color]="'white'" (click)="toggleProductStatus(p)">
+                {{ p.isActive ? '⏸️ Pausar' : '▶️ Activar' }}
+              </button>
+              <span class="status-pill" [class.optimo]="p.isActive" [class.critico]="!p.isActive">
+                {{ p.isActive ? 'Activo' : 'Pausado' }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -108,6 +116,7 @@
               <th class="text-right">Precio Venta Mostrador</th>
               <th class="text-right">Margen Directo</th>
               <th>Estado</th>
+              <th class="text-center" style="width: 130px;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -121,7 +130,17 @@
               <td class="text-right font-mono font-bold">
                 {{ ((p.baseUnitPrice - p.costPrice) / p.baseUnitPrice * 100) | number:'1.1-1' }}%
               </td>
-              <td><span class="status-pill optimo">En Venta</span></td>
+              <td>
+                <span class="status-pill" [class.optimo]="p.isActive" [class.critico]="!p.isActive">
+                  {{ p.isActive ? 'En Venta' : 'Pausado' }}
+                </span>
+              </td>
+              <td class="text-center" style="white-space: nowrap;">
+                <button class="btn-sm btn-secondary" (click)="openEditModal(p)" style="padding: 0.2rem 0.45rem; margin-right: 0.25rem;">✏️ Modificar</button>
+                <button class="btn-sm" [style.background]="p.isActive ? '#f59e0b' : '#10b981'" [style.color]="'white'" (click)="toggleProductStatus(p)" style="padding: 0.2rem 0.45rem;">
+                  {{ p.isActive ? '⏸️' : '▶️' }}
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -158,9 +177,15 @@
             </div>
           </div>
 
-          <div class="bundle-footer">
+          <div class="bundle-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
             <span class="margin-info">Costo combinado: ${{ b.costPrice | number:'1.0-0' }} (Margen {{ ((b.baseUnitPrice - b.costPrice) / b.baseUnitPrice * 100) | number:'1.1-1' }}%)</span>
-            <span class="badge success">⚡ Descuenta Stock Automático</span>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <button class="btn-sm btn-secondary" (click)="openEditModal(b)">✏️ Modificar</button>
+              <button class="btn-sm" [style.background]="b.isActive ? '#f59e0b' : '#10b981'" [style.color]="'white'" (click)="toggleProductStatus(b)">
+                {{ b.isActive ? '⏸️ Pausar' : '▶️ Activar' }}
+              </button>
+              <span class="badge success">⚡ Descuenta Stock</span>
+            </div>
           </div>
         </div>
       </div>
@@ -280,6 +305,62 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" (click)="closeCreateModal()">Cancelar</button>
           <button class="btn btn-primary" (click)="saveNewProduct()">Guardar Producto</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: MODIFICAR PRODUCTO -->
+  @if (showEditModal()) {
+    <div class="modal-backdrop" (click)="closeEditModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>✏️ Modificar Producto: {{ editingProduct()?.name }}</h3>
+          <button class="btn-close" (click)="closeEditModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Código SKU:</label>
+              <input type="text" [(ngModel)]="editForm.sku" class="form-control" />
+            </div>
+            <div class="form-group flex-2">
+              <label>Nombre del Producto: *</label>
+              <input type="text" [(ngModel)]="editForm.name" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Categoría:</label>
+              <input type="text" [(ngModel)]="editForm.category" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Vida Útil en Frío (Días):</label>
+              <input type="number" min="1" [(ngModel)]="editForm.shelfLifeDays" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Precio de Venta ($): *</label>
+              <input type="number" min="0" [(ngModel)]="editForm.baseUnitPrice" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Costo Unitario ($):</label>
+              <input type="number" min="0" [(ngModel)]="editForm.costPrice" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Stock Disponible:</label>
+              <input type="number" min="0" [(ngModel)]="editForm.currentStock" class="form-control" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeEditModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveProductEdit()">💾 Guardar Cambios</button>
         </div>
       </div>
     </div>

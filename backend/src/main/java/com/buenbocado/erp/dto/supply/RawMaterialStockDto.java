@@ -24,4 +24,5 @@ public class RawMaterialStockDto {
     private BigDecimal totalValue;
     private String stockStatus; // 'CRITICO', 'ADVERTENCIA', 'OPTIMO'
     private BigDecimal suggestedReorderQty;
+    private Boolean isActive;
 }

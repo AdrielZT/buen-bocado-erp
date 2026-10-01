@@ -95,6 +95,26 @@
       </div>
     </div>
 
+    <!-- WIDGET DE VARIACIÓN DE INVENTARIO Y DESACOPLAMIENTO DE COMPRAS -->
+    <div class="inventory-variation-banner">
+      <div class="inv-col">
+        <span class="inv-label">📦 Compras de Insumos para Stock:</span>
+        <strong class="inv-val">{{ (dashboard()?.rawMaterialPurchasesTotal || 0) | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong>
+      </div>
+      <div class="inv-col">
+        <span class="inv-label">🥪 CMV Consumido en Sándwiches:</span>
+        <strong class="inv-val text-danger">({{ (dashboard()?.totalCmv || 0) | currency:'ARS':'symbol-narrow':'1.0-0' }})</strong>
+      </div>
+      <div class="inv-col">
+        <span class="inv-label">🧊 Mercadería Remanente en Cámara de Frío:</span>
+        <strong class="inv-val text-success">+{{ (dashboard()?.inventoryVariationAmount || 0) | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong>
+      </div>
+      <div class="inv-col">
+        <span class="inv-label">💵 Resultado Operativo EBITDA Real:</span>
+        <strong class="inv-val text-primary">{{ (dashboard()?.operatingProfit || 0) | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong>
+      </div>
+    </div>
+
     <!-- CUADRO FORMAL: ESTADO DE RESULTADOS (P&L) -->
     <div class="table-container">
       <div class="table-header-info">
@@ -206,21 +226,28 @@
           <tr class="row-parent clickable" (click)="toggleSection('expenses')">
             <td>
               <span class="toggle-icon">{{ isExpanded('expenses') ? '▼' : '▶' }}</span>
-              <strong class="text-danger">(-) Gastos Operativos Totales</strong>
+              <input type="checkbox" [checked]="areAllExpensesSelected()" (change)="toggleSelectAllExpenses()" (click)="$event.stopPropagation()" title="Seleccionar todos los gastos" />
+              <strong class="text-danger">(-) Gastos Operativos Totales (Estructura)</strong>
               <span class="count-tag">{{ dashboard()?.operatingExpensesBreakdown?.length || 0 }} comprobantes</span>
               <button class="btn-table-add" (click)="$event.stopPropagation(); openExpenseModal()">+ Registrar Gasto</button>
+              @if (selectedExpenses().size > 0) {
+                <button class="btn-batch-delete" (click)="$event.stopPropagation(); deleteSelectedExpenses()">
+                  🗑️ Borrar Seleccionados ({{ selectedExpenses().size }})
+                </button>
+              }
             </td>
-            <td><span class="badge-mini type-fixed">Gastos Fabriles / Operación</span></td>
+            <td><span class="badge-mini type-fixed">Sueldos, Alquiler, Luz, Fletes</span></td>
             <td class="text-right text-danger font-bold">({{ dashboard()?.totalOperatingExpenses | currency:'ARS':'symbol-narrow':'1.2-2' }})</td>
             <td class="text-right text-danger font-medium">{{ ((dashboard()?.totalOperatingExpenses || 0) / (dashboard()?.totalSales || 1) * 100) | number:'1.2-2' }}%</td>
             <td class="text-right text-muted">100.00%</td>
           </tr>
 
-          <!-- SUBITEMS: DESGLOSE DE GASTOS CON COMPROBANTES -->
+          <!-- SUBITEMS: DESGLOSE DE GASTOS CON COMPROBANTES Y CHECKBOX -->
           @if (isExpanded('expenses')) {
             @for (exp of dashboard()?.operatingExpensesBreakdown; track exp.id) {
-              <tr class="row-child">
+              <tr class="row-child" [class.row-selected]="isExpenseSelected(exp.id)">
                 <td class="child-cell">
+                  <input type="checkbox" [checked]="isExpenseSelected(exp.id)" (change)="toggleSelectExpense(exp.id)" (click)="$event.stopPropagation()" />
                   <span class="tree-branch">└─</span>
                   <div class="expense-info">
                     <span class="order-date-tag">{{ exp.expenseDate }}</span>

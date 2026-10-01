@@ -151,6 +151,60 @@ export class FinanceDashboardComponent implements OnInit {
     });
   }
 
+  // Selección múltiple para eliminación en lote
+  selectedExpenses = signal<Set<string>>(new Set());
+
+  toggleSelectAllExpenses(): void {
+    const current = new Set(this.selectedExpenses());
+    const allExpenses = this.dashboard()?.operatingExpensesBreakdown || [];
+    if (current.size === allExpenses.length && allExpenses.length > 0) {
+      this.selectedExpenses.set(new Set());
+    } else {
+      const allIds = new Set(allExpenses.map(e => e.id));
+      this.selectedExpenses.set(allIds);
+    }
+  }
+
+  toggleSelectExpense(id: string): void {
+    const current = new Set(this.selectedExpenses());
+    if (current.has(id)) {
+      current.delete(id);
+    } else {
+      current.add(id);
+    }
+    this.selectedExpenses.set(current);
+  }
+
+  isExpenseSelected(id: string): boolean {
+    return this.selectedExpenses().has(id);
+  }
+
+  areAllExpensesSelected(): boolean {
+    const all = this.dashboard()?.operatingExpensesBreakdown || [];
+    return all.length > 0 && this.selectedExpenses().size === all.length;
+  }
+
+  deleteSelectedExpenses(): void {
+    const ids = Array.from(this.selectedExpenses());
+    if (ids.length === 0) return;
+    if (!confirm(`¿Está seguro de eliminar ${ids.length} comprobantes de gasto seleccionados? Se recalcularán los indicadores financieros de inmediato.`)) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    this.financeService.deleteExpensesBatch(ids).subscribe({
+      next: () => {
+        this.selectedExpenses.set(new Set());
+        this.loadData();
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        alert('Error al eliminar los gastos seleccionados.');
+        console.error(err);
+      }
+    });
+  }
+
   deleteExpense(id: string | undefined): void {
     if (!id) return;
     if (!confirm('¿Está seguro de eliminar este gasto operativo? Los indicadores financieros se recalcularán automáticamente.')) {

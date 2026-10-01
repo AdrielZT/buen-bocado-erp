@@ -145,6 +145,73 @@ public class FinanceController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/expenses/batch-delete")
+    @Operation(summary = "Eliminar múltiples gastos operativos en lote")
+    public ResponseEntity<Void> deleteExpensesBatch(@RequestBody List<UUID> ids) {
+        if (ids != null && !ids.isEmpty()) {
+            expenseRepository.deleteAllById(ids);
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/clients/{id}")
+    @Operation(summary = "Modificar datos de un cliente comercial")
+    public ResponseEntity<Client> updateClient(@PathVariable UUID id, @RequestBody Client updated) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+        if (updated.getBusinessName() != null) client.setBusinessName(updated.getBusinessName());
+        if (updated.getContactName() != null) client.setContactName(updated.getContactName());
+        if (updated.getTaxId() != null) client.setTaxId(updated.getTaxId());
+        if (updated.getPhone() != null) client.setPhone(updated.getPhone());
+        if (updated.getEmail() != null) client.setEmail(updated.getEmail());
+        if (updated.getDeliveryAddress() != null) client.setDeliveryAddress(updated.getDeliveryAddress());
+        if (updated.getCreditLimit() != null) client.setCreditLimit(updated.getCreditLimit());
+        if (updated.getClientType() != null) client.setClientType(updated.getClientType());
+        if (updated.getIsActive() != null) client.setIsActive(updated.getIsActive());
+        return ResponseEntity.ok(clientRepository.save(client));
+    }
+
+    @PatchMapping("/clients/{id}/status")
+    @Operation(summary = "Inhabilitar o habilitar un cliente comercial")
+    public ResponseEntity<Client> toggleClientStatus(@PathVariable UUID id, @RequestBody java.util.Map<String, Boolean> payload) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+        boolean active = payload.getOrDefault("isActive", !Boolean.TRUE.equals(client.getIsActive()));
+        client.setIsActive(active);
+        return ResponseEntity.ok(clientRepository.save(client));
+    }
+
+    @PutMapping("/products/{id}")
+    @Operation(summary = "Modificar un producto elaborado, reventa o combo")
+    public ResponseEntity<Product> updateProduct(@PathVariable UUID id, @RequestBody Product updated) {
+        Product prod = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + id));
+        if (updated.getName() != null) prod.setName(updated.getName());
+        if (updated.getSku() != null) prod.setSku(updated.getSku());
+        if (updated.getCategory() != null) prod.setCategory(updated.getCategory());
+        if (updated.getBaseUnitPrice() != null) prod.setBaseUnitPrice(updated.getBaseUnitPrice());
+        if (updated.getShelfLifeHours() != null) prod.setShelfLifeHours(updated.getShelfLifeHours());
+        if (updated.getIsActive() != null) prod.setIsActive(updated.getIsActive());
+        return ResponseEntity.ok(productRepository.save(prod));
+    }
+
+    @PatchMapping("/products/{id}/status")
+    @Operation(summary = "Inhabilitar o activar un producto comercial")
+    public ResponseEntity<Product> toggleProductStatus(@PathVariable UUID id, @RequestBody java.util.Map<String, Boolean> payload) {
+        Product prod = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + id));
+        boolean active = payload.getOrDefault("isActive", !Boolean.TRUE.equals(prod.getIsActive()));
+        prod.setIsActive(active);
+        return ResponseEntity.ok(productRepository.save(prod));
+    }
+
+    @DeleteMapping("/orders/{id}")
+    @Operation(summary = "Eliminar o anular una orden de venta")
+    public ResponseEntity<Void> deleteOrder(@PathVariable UUID id) {
+        orderRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/orders")
     @Operation(summary = "Registrar una nueva venta / pedido manual con precio pactado por cliente")
     public ResponseEntity<Order> createOrder(@Valid @RequestBody CreateOrderRequestDto request) {

@@ -14,7 +14,7 @@ export interface ProductionOrder {
   targetUnits: number;
   completedUnits: number;
   scheduledDate: string;
-  status: 'PLANIFICADO' | 'EN_COCCION' | 'ENVASADO_EN_FRIO';
+  status: 'PLANIFICADO' | 'EN_COCCION' | 'ENVASADO_EN_FRIO' | 'COMPLETADA' | 'CANCELADA';
 }
 
 export interface RecipeBOM {
@@ -24,6 +24,7 @@ export interface RecipeBOM {
   yieldUnits: number;
   estimatedCostPerUnit: number;
   shelfLifeDays: number;
+  isActive?: boolean;
   ingredients: {
     rawMaterialName: string;
     quantity: number;
@@ -316,6 +317,118 @@ export class FactoryOperationsComponent implements OnInit {
       order.completedUnits = order.targetUnits;
       this.showToast(`¡Lote #${order.batchNumber} finalizado y almacenado en cámara de frío (5 días)!`);
     }
+  }
+
+  // --- CRUD ÓRDENES DE FABRICACIÓN ---
+  showEditOrderModal = signal<boolean>(false);
+  editingOrder = signal<ProductionOrder | null>(null);
+  editOrderForm = {
+    productName: '',
+    category: 'PEBETE',
+    orderType: 'MTO_B2B' as 'MTO_B2B' | 'MTS_STOCK',
+    targetUnits: 100,
+    completedUnits: 0,
+    scheduledDate: '',
+    status: 'PLANIFICADO' as 'PLANIFICADO' | 'EN_COCCION' | 'ENVASADO_EN_FRIO' | 'COMPLETADA' | 'CANCELADA'
+  };
+
+  openEditOrderModal(order: ProductionOrder): void {
+    this.editingOrder.set(order);
+    this.editOrderForm = {
+      productName: order.productName,
+      category: order.category,
+      orderType: order.orderType,
+      targetUnits: order.targetUnits,
+      completedUnits: order.completedUnits,
+      scheduledDate: order.scheduledDate,
+      status: order.status
+    };
+    this.showEditOrderModal.set(true);
+  }
+
+  closeEditOrderModal(): void {
+    this.showEditOrderModal.set(false);
+    this.editingOrder.set(null);
+  }
+
+  saveOrderEdit(): void {
+    const ord = this.editingOrder();
+    if (!ord) return;
+
+    ord.productName = this.editOrderForm.productName;
+    ord.category = this.editOrderForm.category;
+    ord.orderType = this.editOrderForm.orderType;
+    ord.targetUnits = this.editOrderForm.targetUnits;
+    ord.completedUnits = this.editOrderForm.completedUnits;
+    ord.scheduledDate = this.editOrderForm.scheduledDate;
+    ord.status = this.editOrderForm.status;
+
+    this.closeEditOrderModal();
+    this.showToast(`Orden #${ord.batchNumber} actualizada correctamente.`);
+  }
+
+  changeOrderStatus(order: ProductionOrder, newStatus: any): void {
+    order.status = newStatus;
+    if (newStatus === 'ENVASADO_EN_FRIO' || newStatus === 'COMPLETADA') {
+      if (order.completedUnits === 0) {
+        order.completedUnits = order.targetUnits;
+      }
+    }
+    this.showToast(`Lote #${order.batchNumber} actualizado a estado: ${newStatus}`);
+  }
+
+  deleteProductionOrder(orderId: string): void {
+    if (!confirm('¿Confirma la eliminación de esta orden de fabricación?')) return;
+    this.productionOrders.set(this.productionOrders().filter(o => o.id !== orderId));
+    this.showToast('Orden de fabricación eliminada.');
+  }
+
+  // --- CRUD RECETAS BOM ---
+  showEditRecipeModal = signal<boolean>(false);
+  editingRecipe = signal<RecipeBOM | null>(null);
+  editRecipeForm = {
+    productName: '',
+    category: '',
+    yieldUnits: 1,
+    estimatedCostPerUnit: 0,
+    shelfLifeDays: 5
+  };
+
+  openEditRecipeModal(recipe: RecipeBOM): void {
+    this.editingRecipe.set(recipe);
+    this.editRecipeForm = {
+      productName: recipe.productName,
+      category: recipe.category,
+      yieldUnits: recipe.yieldUnits,
+      estimatedCostPerUnit: recipe.estimatedCostPerUnit,
+      shelfLifeDays: recipe.shelfLifeDays
+    };
+    this.showEditRecipeModal.set(true);
+  }
+
+  closeEditRecipeModal(): void {
+    this.showEditRecipeModal.set(false);
+    this.editingRecipe.set(null);
+  }
+
+  saveRecipeEdit(): void {
+    const rec = this.editingRecipe();
+    if (!rec) return;
+
+    rec.productName = this.editRecipeForm.productName;
+    rec.category = this.editRecipeForm.category;
+    rec.yieldUnits = this.editRecipeForm.yieldUnits;
+    rec.estimatedCostPerUnit = this.editRecipeForm.estimatedCostPerUnit;
+    rec.shelfLifeDays = this.editRecipeForm.shelfLifeDays;
+
+    this.closeEditRecipeModal();
+    this.showToast(`Receta de "${rec.productName}" actualizada.`);
+  }
+
+  toggleRecipeStatus(recipe: RecipeBOM): void {
+    const nextStatus = recipe.isActive === false ? true : false;
+    recipe.isActive = nextStatus;
+    this.showToast(`Receta "${recipe.productName}" ${nextStatus ? 'activada' : 'inactivada'}.`);
   }
 
   // Métodos de Partes Diarios

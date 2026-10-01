@@ -29,7 +29,10 @@ public class FinanceDashboardDto {
 
     private BigDecimal fixedExpenses;      // Gastos Fijos (Piso fijo de costos semifijos)
     private BigDecimal variableExpenses;   // Gastos Variables (Porción variable de costos semifijos)
-    private BigDecimal totalOperatingExpenses; // Gastos Operativos Totales
+    private BigDecimal totalOperatingExpenses; // Gastos Operativos Totales (Excluye compras de insumos para no duplicar con CMV)
+    private BigDecimal rawMaterialPurchasesTotal; // Compras de Insumos y Materias Primas del período
+    private BigDecimal inventoryVariationAmount;  // Variación Neta de Inventario (Compras - CMV)
+    private BigDecimal cashSurplus;               // Flujo de Caja Neto (Cobranzas - Desembolsos)
 
     // Resultado y Margen Operativo (Punto 5: reemplaza EBITDA)
     private BigDecimal operatingProfit;        // Resultado Operativo ($) = Utilidad Bruta - Gastos Operativos

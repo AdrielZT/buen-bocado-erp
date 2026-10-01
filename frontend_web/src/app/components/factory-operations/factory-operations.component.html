@@ -86,20 +86,18 @@
               <td class="text-right font-mono">{{ ord.completedUnits }} u.</td>
               <td>{{ ord.scheduledDate }}</td>
               <td>
-                <span class="status-pill"
-                      [class.optimo]="ord.status === 'ENVASADO_EN_FRIO'"
-                      [class.advertencia]="ord.status === 'EN_COCCION'"
-                      [class.critico]="ord.status === 'PLANIFICADO'">
-                  {{ ord.status === 'ENVASADO_EN_FRIO' ? 'En Cámara de Frío' : (ord.status === 'EN_COCCION' ? 'En Elaboración' : 'Planificado') }}
-                </span>
+                <select [ngModel]="ord.status" (ngModelChange)="changeOrderStatus(ord, $event)"
+                        style="padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.825rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; cursor: pointer;">
+                  <option value="PLANIFICADO">📋 Planificado</option>
+                  <option value="EN_COCCION">🍳 En Elaboración</option>
+                  <option value="ENVASADO_EN_FRIO">❄️ Envasado en Frío</option>
+                  <option value="COMPLETADA">✅ Completada</option>
+                  <option value="CANCELADA">❌ Cancelada</option>
+                </select>
               </td>
-              <td class="text-right">
-                <button *ngIf="ord.status !== 'ENVASADO_EN_FRIO'"
-                        class="btn-primary-xs"
-                        (click)="advanceOrderStatus(ord)">
-                  {{ ord.status === 'PLANIFICADO' ? '▶ Iniciar Cocina' : '❄️ Finalizar y Enfriar' }}
-                </button>
-                <span *ngIf="ord.status === 'ENVASADO_EN_FRIO'" class="badge success">✅ Listo</span>
+              <td class="text-right" style="white-space: nowrap;">
+                <button class="btn-sm btn-secondary" (click)="openEditOrderModal(ord)" style="padding: 0.2rem 0.45rem; margin-right: 0.25rem;" title="Modificar orden">✏️</button>
+                <button class="btn-sm" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 0.2rem 0.45rem; cursor: pointer;" (click)="deleteProductionOrder(ord.id)" title="Eliminar orden">🗑️</button>
               </td>
             </tr>
           </tbody>
@@ -114,11 +112,14 @@
   @if (activeTab() === 'recipes') {
     <div class="tab-pane-content">
       <div class="recipes-grid">
-        <div *ngFor="let rec of recipes()" class="recipe-card">
+        <div *ngFor="let rec of recipes()" class="recipe-card" [style.opacity]="rec.isActive === false ? '0.7' : '1'">
           <div class="recipe-card-header">
             <div>
-              <span class="category-pill">{{ rec.category }}</span>
-              <h3 class="recipe-title">{{ rec.productName }}</h3>
+              <div style="display: flex; gap: 0.35rem; align-items: center; margin-bottom: 0.25rem;">
+                <span class="category-pill">{{ rec.category }}</span>
+                <span *ngIf="rec.isActive === false" class="badge" style="background: #fee2e2; color: #991b1b;">Inactiva</span>
+              </div>
+              <h3 class="recipe-title" [style.text-decoration]="rec.isActive === false ? 'line-through' : 'none'">{{ rec.productName }}</h3>
               <small class="text-muted">Vida útil: {{ rec.shelfLifeDays }} días en frío</small>
             </div>
             <div class="recipe-cost-box">
@@ -138,8 +139,14 @@
             </div>
           </div>
 
-          <div class="recipe-card-footer">
-            <span class="rendimiento-tag">Rendimiento: 100% de absorción de insumos</span>
+          <div class="recipe-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span class="rendimiento-tag">Rendimiento: 100% absorción</span>
+            <div style="display: flex; gap: 0.35rem;">
+              <button class="btn-sm btn-secondary" (click)="openEditRecipeModal(rec)" title="Modificar receta">✏️ Modificar</button>
+              <button class="btn-sm" [style.background]="rec.isActive === false ? '#10b981' : '#f59e0b'" [style.color]="'white'" (click)="toggleRecipeStatus(rec)">
+                {{ rec.isActive === false ? '▶️ Activar' : '⏸️ Inactivar' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -519,6 +526,112 @@
           <button class="btn btn-primary" (click)="saveReturn()" [disabled]="isSavingReturn()">
             {{ isSavingReturn() ? 'Guardando...' : 'Asentar Merma' }}
           </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: MODIFICAR ORDEN DE FABRICACIÓN -->
+  @if (showEditOrderModal()) {
+    <div class="modal-backdrop" (click)="closeEditOrderModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>✏️ Modificar Orden de Producción #{{ editingOrder()?.batchNumber }}</h3>
+          <button class="btn-close" (click)="closeEditOrderModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Producto a Elaborar:</label>
+            <input type="text" [(ngModel)]="editOrderForm.productName" class="form-control" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Tipo de Producción:</label>
+              <select [(ngModel)]="editOrderForm.orderType" class="form-control">
+                <option value="MTO_B2B">Make-to-Order (B2B Pedido)</option>
+                <option value="MTS_STOCK">Make-to-Stock (Cámara Frío)</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label>Estado del Proceso:</label>
+              <select [(ngModel)]="editOrderForm.status" class="form-control">
+                <option value="PLANIFICADO">📋 Planificado</option>
+                <option value="EN_COCCION">🍳 En Elaboración</option>
+                <option value="ENVASADO_EN_FRIO">❄️ Envasado en Frío</option>
+                <option value="COMPLETADA">✅ Completada</option>
+                <option value="CANCELADA">❌ Cancelada</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Meta de Unidades:</label>
+              <input type="number" min="1" [(ngModel)]="editOrderForm.targetUnits" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Unidades Completadas:</label>
+              <input type="number" min="0" [(ngModel)]="editOrderForm.completedUnits" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Fecha Programada:</label>
+            <input type="date" [(ngModel)]="editOrderForm.scheduledDate" class="form-control" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeEditOrderModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveOrderEdit()">💾 Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: MODIFICAR RECETA BOM -->
+  @if (showEditRecipeModal()) {
+    <div class="modal-backdrop" (click)="closeEditRecipeModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>✏️ Modificar Receta BOM: {{ editingRecipe()?.productName }}</h3>
+          <button class="btn-close" (click)="closeEditRecipeModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nombre del Producto Elaborado:</label>
+            <input type="text" [(ngModel)]="editRecipeForm.productName" class="form-control" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Categoría:</label>
+              <input type="text" [(ngModel)]="editRecipeForm.category" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Vida Útil en Frío (Días):</label>
+              <input type="number" min="1" [(ngModel)]="editRecipeForm.shelfLifeDays" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Rendimiento (Unidades):</label>
+              <input type="number" min="1" [(ngModel)]="editRecipeForm.yieldUnits" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Costo Estimado por Unidad ($):</label>
+              <input type="number" min="0" [(ngModel)]="editRecipeForm.estimatedCostPerUnit" class="form-control" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeEditRecipeModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveRecipeEdit()">💾 Guardar Cambios</button>
         </div>
       </div>
     </div>

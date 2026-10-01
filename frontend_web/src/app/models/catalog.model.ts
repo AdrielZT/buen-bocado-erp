@@ -33,6 +33,7 @@ export interface ClientAccount {
   currentBalance: number;
   accountStatus: 'AL_DIA' | 'EN_RIESGO' | 'BLOQUEADO_MOROSO';
   clientType: 'B2B_KIOSK' | 'B2B_CAFE' | 'B2C_SOCIAL' | string;
+  isActive?: boolean;
 }
 
 export interface PriceRule {

@@ -37,7 +37,7 @@
       ⚡ Venta Rápida / Mostrador (POS)
     </button>
     <button [class.active]="activeTab() === 'orders'" (click)="activeTab.set('orders')">
-      📋 Monitor de Pedidos B2B ({{ dashboard()?.salesOrdersBreakdown?.length || 4 }})
+      📋 Histórico de Ventas y Facturación ({{ dashboard()?.salesOrdersBreakdown?.length || 0 }})
     </button>
     <button [class.active]="activeTab() === 'clients'" (click)="activeTab.set('clients')">
       👥 Directorio de Clientes ({{ clientAccounts.length }})
@@ -233,6 +233,7 @@
               <th class="text-right">Unidades</th>
               <th class="text-right">Total Facturado</th>
               <th class="text-right">% Ventas</th>
+              <th class="text-center" style="width: 80px;">Acción</th>
             </tr>
           </thead>
           <tbody>
@@ -256,12 +257,19 @@
                 <td class="text-right font-bold">{{ order.totalUnits | number }} u.</td>
                 <td class="text-right font-bold text-success">{{ order.totalAmount | currency:'ARS':'symbol-narrow':'1.0-0' }}</td>
                 <td class="text-right font-mono">{{ order.percentOfSales | number:'1.1-1' }}%</td>
+                <td class="text-center">
+                  <button class="btn-del" style="color: #ef4444; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer;"
+                          (click)="deleteOrder(order.orderId)"
+                          title="Eliminar / Anular pedido">
+                    🗑️
+                  </button>
+                </td>
               </tr>
 
               <!-- Desglose de ítems anidados -->
               @if (expandedOrders()[order.orderId] && order.items && order.items.length > 0) {
                 <tr class="nested-items-row">
-                  <td colspan="8">
+                  <td colspan="9">
                     <div class="nested-items-wrapper">
                       <table class="nested-table">
                         <thead>
@@ -294,7 +302,7 @@
             }
             @if (getFilteredOrders().length === 0) {
               <tr>
-                <td colspan="8" class="empty-orders-cell">
+                <td colspan="9" class="empty-orders-cell">
                   <div class="empty-orders-box">
                     <span class="empty-icon">📋</span>
                     <h4>No se registran pedidos en el período seleccionado ({{ startDate() }} a {{ endDate() }})</h4>
@@ -318,15 +326,18 @@
   @if (activeTab() === 'clients') {
     <div class="tab-pane-content">
       <div class="clients-grid">
-        <div *ngFor="let c of clientAccounts" class="client-card">
+        <div *ngFor="let c of clientAccounts" class="client-card" [style.opacity]="c.isActive === false ? '0.7' : '1'">
           <div class="client-card-header">
             <div>
-              <h3 class="client-name">{{ c.businessName }}</h3>
+              <h3 class="client-name" [style.text-decoration]="c.isActive === false ? 'line-through' : 'none'">{{ c.businessName }}</h3>
               <span class="client-cuit">CUIT: {{ c.taxId }}</span>
             </div>
-            <span class="badge" [class.b2b]="c.clientType !== 'B2C_SOCIAL'" [class.b2c]="c.clientType === 'B2C_SOCIAL'">
-              {{ c.clientType }}
-            </span>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <span *ngIf="c.isActive === false" class="badge" style="background: #fee2e2; color: #991b1b;">Inhabilitado</span>
+              <span class="badge" [class.b2b]="c.clientType !== 'B2C_SOCIAL'" [class.b2c]="c.clientType === 'B2C_SOCIAL'">
+                {{ c.clientType }}
+              </span>
+            </div>
           </div>
 
           <div class="client-card-body">
@@ -336,9 +347,15 @@
             <p><strong>✉️ Email:</strong> {{ c.email }}</p>
           </div>
 
-          <div class="client-card-footer">
-            <span class="credit-tag">Límite Crédito: ${{ c.creditLimit | number:'1.0-0' }}</span>
-            <button class="btn-sm btn-secondary" (click)="openPaymentModal(c)">Ver Saldo</button>
+          <div class="client-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span class="credit-tag">Límite: ${{ c.creditLimit | number:'1.0-0' }}</span>
+            <div style="display: flex; gap: 0.4rem;">
+              <button class="btn-sm btn-secondary" (click)="openEditClientModal(c)" title="Editar datos del cliente">✏️ Modificar</button>
+              <button class="btn-sm" [style.background]="c.isActive === false ? '#10b981' : '#f59e0b'" [style.color]="'white'" (click)="toggleClientStatus(c)" [title]="c.isActive === false ? 'Habilitar cliente' : 'Inhabilitar cliente'">
+                {{ c.isActive === false ? '▶️ Habilitar' : '⏸️ Inhabilitar' }}
+              </button>
+              <button class="btn-sm btn-secondary" (click)="openPaymentModal(c)">Ver Saldo</button>
+            </div>
           </div>
         </div>
       </div>
@@ -519,6 +536,68 @@
           <button class="btn btn-secondary" (click)="closeOrderModal()">Cancelar</button>
           <button class="btn btn-primary" (click)="saveOrder()" [disabled]="isSavingOrder()">
             {{ isSavingOrder() ? 'Guardando...' : 'Confirmar Pedido' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: MODIFICAR CLIENTE -->
+  @if (showEditClientModal()) {
+    <div class="modal-backdrop" (click)="closeEditClientModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>✏️ Modificar Datos del Cliente</h3>
+          <button class="btn-close" (click)="closeEditClientModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Razón Social / Nombre Comercial: *</label>
+            <input type="text" [(ngModel)]="editClientForm.businessName" class="form-control" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Contacto Responsable:</label>
+              <input type="text" [(ngModel)]="editClientForm.contactName" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Teléfono:</label>
+              <input type="text" [(ngModel)]="editClientForm.phone" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Email:</label>
+              <input type="email" [(ngModel)]="editClientForm.email" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Tipo de Cliente:</label>
+              <select [(ngModel)]="editClientForm.clientType" class="form-control">
+                <option value="B2B_KIOSK">B2B Kiosco / Comercio</option>
+                <option value="B2B_CAFE">B2B Cafetería / Bar</option>
+                <option value="B2C_SOCIAL">B2C Consumidor / Redes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Dirección de Entrega / Despacho:</label>
+            <input type="text" [(ngModel)]="editClientForm.deliveryAddress" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Límite de Crédito Cuenta Corriente ($):</label>
+            <input type="number" min="0" step="1000" [(ngModel)]="editClientForm.creditLimit" class="form-control" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeEditClientModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveClientEdit()" [disabled]="isLoading()">
+            {{ isLoading() ? 'Guardando...' : '💾 Guardar Cambios' }}
           </button>
         </div>
       </div>

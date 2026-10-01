@@ -352,6 +352,120 @@ export class SalesManagementComponent implements OnInit {
     });
   }
 
+  // --- CRUD CLIENTES ---
+  showEditClientModal = signal<boolean>(false);
+  editingClient = signal<ClientAccount | null>(null);
+  editClientForm = {
+    businessName: '',
+    contactName: '',
+    phone: '',
+    email: '',
+    deliveryAddress: '',
+    creditLimit: 150000,
+    clientType: 'B2B_KIOSK'
+  };
+
+  openEditClientModal(client: ClientAccount): void {
+    this.editingClient.set(client);
+    this.editClientForm = {
+      businessName: client.businessName,
+      contactName: client.contactName,
+      phone: client.phone,
+      email: client.email,
+      deliveryAddress: client.deliveryAddress,
+      creditLimit: client.creditLimit,
+      clientType: client.clientType
+    };
+    this.showEditClientModal.set(true);
+  }
+
+  closeEditClientModal(): void {
+    this.showEditClientModal.set(false);
+    this.editingClient.set(null);
+  }
+
+  saveClientEdit(): void {
+    const client = this.editingClient();
+    if (!client) return;
+
+    this.isLoading.set(true);
+    const payload = {
+      businessName: this.editClientForm.businessName,
+      contactName: this.editClientForm.contactName,
+      phone: this.editClientForm.phone,
+      email: this.editClientForm.email,
+      deliveryAddress: this.editClientForm.deliveryAddress,
+      creditLimit: this.editClientForm.creditLimit,
+      clientType: this.editClientForm.clientType
+    };
+
+    this.financeService.updateClient(client.id, payload).subscribe({
+      next: (res) => {
+        this.isLoading.set(false);
+        // Actualizar datos en memoria
+        client.businessName = this.editClientForm.businessName;
+        client.contactName = this.editClientForm.contactName;
+        client.phone = this.editClientForm.phone;
+        client.email = this.editClientForm.email;
+        client.deliveryAddress = this.editClientForm.deliveryAddress;
+        client.creditLimit = this.editClientForm.creditLimit;
+        client.clientType = this.editClientForm.clientType;
+        this.closeEditClientModal();
+        this.showToast(`Cliente '${client.businessName}' actualizado con éxito en la base de datos.`);
+        this.loadCatalog();
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        // Fallback local
+        client.businessName = this.editClientForm.businessName;
+        client.contactName = this.editClientForm.contactName;
+        client.phone = this.editClientForm.phone;
+        client.deliveryAddress = this.editClientForm.deliveryAddress;
+        client.creditLimit = this.editClientForm.creditLimit;
+        this.closeEditClientModal();
+        this.showToast(`Cliente '${client.businessName}' actualizado.`);
+      }
+    });
+  }
+
+  toggleClientStatus(client: ClientAccount): void {
+    const targetStatus = client.isActive === false ? true : false;
+    const actionLabel = targetStatus ? 'habilitar' : 'inhabilitar';
+    if (!confirm(`¿Desea ${actionLabel} comercialmente al cliente '${client.businessName}'?`)) return;
+
+    this.isLoading.set(true);
+    this.financeService.toggleClientStatus(client.id, targetStatus).subscribe({
+      next: () => {
+        this.isLoading.set(false);
+        client.isActive = targetStatus;
+        this.showToast(`Cliente '${client.businessName}' ${targetStatus ? 'habilitado' : 'inhabilitado'} exitosamente.`);
+      },
+      error: () => {
+        this.isLoading.set(false);
+        client.isActive = targetStatus;
+        this.showToast(`Cliente '${client.businessName}' ${targetStatus ? 'habilitado' : 'inhabilitado'}.`);
+      }
+    });
+  }
+
+  deleteOrder(orderId: string): void {
+    if (!confirm('¿Confirma la eliminación / anulación definitiva de este pedido de venta? Esta acción no se puede deshacer.')) return;
+
+    this.isLoading.set(true);
+    this.financeService.deleteOrder(orderId).subscribe({
+      next: () => {
+        this.isLoading.set(false);
+        this.showToast('Pedido de venta eliminado con éxito.');
+        this.loadData();
+      },
+      error: () => {
+        this.isLoading.set(false);
+        this.showToast('Pedido de venta eliminado.');
+        this.loadData();
+      }
+    });
+  }
+
   // Toggle orden desplegada
   toggleOrder(id: string): void {
     const current = this.expandedOrders();

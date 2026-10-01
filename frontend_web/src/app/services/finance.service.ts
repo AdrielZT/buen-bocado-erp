@@ -72,4 +72,28 @@ export class FinanceService {
   deleteExpense(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/expenses/${id}`);
   }
+
+  deleteExpensesBatch(ids: string[]): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/expenses/batch-delete`, ids);
+  }
+
+  updateClient(id: string, clientData: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/clients/${id}`, clientData);
+  }
+
+  toggleClientStatus(id: string, isActive?: boolean): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/clients/${id}/status`, { isActive });
+  }
+
+  updateProduct(id: string, productData: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/products/${id}`, productData);
+  }
+
+  toggleProductStatus(id: string, isActive?: boolean): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/products/${id}/status`, { isActive });
+  }
+
+  deleteOrder(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/orders/${id}`);
+  }
 }

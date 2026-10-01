@@ -79,6 +79,9 @@ export interface FinanceDashboard {
   fixedExpenses: number;
   variableExpenses: number;
   totalOperatingExpenses: number;
+  rawMaterialPurchasesTotal?: number;
+  inventoryVariationAmount?: number;
+  cashSurplus?: number;
   operatingProfit?: number;
   operatingMarginPercent?: number;
   ebitda: number;
@@ -114,8 +117,11 @@ export interface ClientOption {
 export interface ProductOption {
   id: string;
   name: string;
+  sku?: string;
   category: string;
   baseUnitPrice: number;
+  shelfLifeHours?: number;
+  isActive?: boolean;
 }
 
 export interface OperatingExpense {

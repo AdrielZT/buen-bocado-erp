@@ -10,6 +10,7 @@ export interface RawMaterialStock {
   totalValue: number;
   stockStatus: 'CRITICO' | 'ADVERTENCIA' | 'OPTIMO';
   suggestedReorderQty: number;
+  isActive?: boolean;
 }
 
 export interface Supplier {

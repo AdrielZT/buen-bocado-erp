@@ -90,22 +90,28 @@
   <div *ngIf="activeTab === 'stock'" class="tab-content">
     <div class="table-container">
       <div class="section-title-bar">
-        <h3>Materias Primas & Insumos Perecederos</h3>
-        <span class="badge-info">Cálculo de CMV basado en PEPS</span>
+        <div>
+          <h3>Materias Primas & Insumos Perecederos</h3>
+          <span class="badge-info">Cálculo de CMV basado en PEPS</span>
+        </div>
+        <button class="btn-primary-sm" (click)="openCreateMaterialModal()">+ Nueva Materia Prima</button>
       </div>
       <div class="stock-grid">
-        <div *ngFor="let item of rawMaterials" class="stock-item-card" [class.card-critical]="item.stockStatus === 'CRITICO'">
+        <div *ngFor="let item of rawMaterials" class="stock-item-card" [class.card-critical]="item.stockStatus === 'CRITICO'" [style.opacity]="item.isActive === false ? '0.7' : '1'">
           <div class="stock-card-header">
             <span class="category-badge" [style.backgroundColor]="getCategoryColor(item.category)">
               {{ item.category }}
             </span>
-            <span class="status-pill" [ngClass]="item.stockStatus.toLowerCase()">
-              {{ item.stockStatus }}
-            </span>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <span *ngIf="item.isActive === false" class="badge" style="background: #fee2e2; color: #991b1b; font-size: 0.75rem;">Inhabilitado</span>
+              <span class="status-pill" [ngClass]="item.stockStatus.toLowerCase()">
+                {{ item.stockStatus }}
+              </span>
+            </div>
           </div>
 
           <div class="stock-main-info">
-            <h4 class="item-name">{{ item.name }}</h4>
+            <h4 class="item-name" [style.text-decoration]="item.isActive === false ? 'line-through' : 'none'">{{ item.name }}</h4>
             <span class="item-code">{{ item.code }}</span>
           </div>
 
@@ -128,14 +134,22 @@
             </div>
           </div>
 
-          <div class="stock-card-footer">
-            <div class="price-info">
-              <span class="footer-label">Último Costo Compra</span>
-              <span class="footer-value">${{ item.lastPurchasePrice | number:'1.2-2' }} / {{ item.unitOfMeasure }}</span>
+          <div class="stock-card-footer" style="flex-direction: column; gap: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+              <div class="price-info">
+                <span class="footer-label">Último Costo Compra</span>
+                <span class="footer-value">${{ item.lastPurchasePrice | number:'1.2-2' }} / {{ item.unitOfMeasure }}</span>
+              </div>
+              <div class="value-info">
+                <span class="footer-label">Valuación Total</span>
+                <span class="footer-value font-bold">${{ item.totalValue | number:'1.2-2' }}</span>
+              </div>
             </div>
-            <div class="value-info">
-              <span class="footer-label">Valuación Total</span>
-              <span class="footer-value font-bold">${{ item.totalValue | number:'1.2-2' }}</span>
+            <div style="display: flex; gap: 0.35rem; justify-content: flex-end; width: 100%; border-top: 1px dashed #e2e8f0; padding-top: 0.4rem;">
+              <button class="btn-sm btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" (click)="openEditMaterialModal(item)">✏️ Modificar</button>
+              <button class="btn-sm" [style.background]="item.isActive === false ? '#10b981' : '#f59e0b'" [style.color]="'white'" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; border: none; border-radius: 4px; cursor: pointer;" (click)="toggleMaterialStatus(item)">
+                {{ item.isActive === false ? '▶️ Habilitar' : '⏸️ Inhabilitar' }}
+              </button>
             </div>
           </div>
         </div>
@@ -195,6 +209,7 @@
             <th>Insumos Comprados</th>
             <th>Total Facturado</th>
             <th>Estado Pago</th>
+            <th class="text-center" style="width: 80px;">Acción</th>
           </tr>
         </thead>
         <tbody>
@@ -215,9 +230,15 @@
                 {{ p.paymentStatus === 'PAID' ? 'PAGADA' : 'PENDIENTE' }}
               </span>
             </td>
+            <td class="text-center">
+              <button class="btn-del" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer;"
+                      (click)="deletePurchase(p.id)" title="Eliminar / Anular Factura">
+                🗑️
+              </button>
+            </td>
           </tr>
           <tr *ngIf="purchases.length === 0">
-            <td colspan="6" class="empty-state">No se registran facturas de compra aún.</td>
+            <td colspan="7" class="empty-state">No se registran facturas de compra aún.</td>
           </tr>
         </tbody>
       </table>
@@ -233,17 +254,26 @@
       </div>
 
       <div class="suppliers-grid">
-        <div *ngFor="let s of suppliers" class="supplier-card">
+        <div *ngFor="let s of suppliers" class="supplier-card" [style.opacity]="s.isActive === false ? '0.7' : '1'">
           <div class="supplier-icon">🏢</div>
           <div class="supplier-content">
-            <h4 class="supplier-name">{{ s.businessName }}</h4>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <h4 class="supplier-name" [style.text-decoration]="s.isActive === false ? 'line-through' : 'none'">{{ s.businessName }}</h4>
+              <span *ngIf="s.isActive === false" class="badge" style="background: #fee2e2; color: #991b1b; font-size: 0.75rem;">Inhabilitado</span>
+            </div>
             <div class="supplier-meta">
               <span><strong>CUIT:</strong> {{ s.taxId || 'No informado' }}</span>
               <span><strong>Tel:</strong> {{ s.contactPhone || 'No informado' }}</span>
               <span><strong>Email:</strong> {{ s.email || 'No informado' }}</span>
             </div>
           </div>
-          <div class="supplier-actions">
+          <div class="supplier-actions" style="display: flex; gap: 0.35rem; align-items: center;">
+            <button class="btn-secondary-xs" (click)="openEditSupplierModal(s)" title="Modificar datos del proveedor">
+              ✏️ Modificar
+            </button>
+            <button class="btn-secondary-xs" [style.background]="s.isActive === false ? '#10b981' : '#f59e0b'" [style.color]="'white'" (click)="toggleSupplierStatus(s)">
+              {{ s.isActive === false ? '▶️ Habilitar' : '⏸️ Inhabilitar' }}
+            </button>
             <button class="btn-secondary-xs" (click)="openPurchaseModal(s.id)">
               + Comprar
             </button>
@@ -396,7 +426,7 @@
   <div *ngIf="showSupplierModal" class="modal-backdrop" (click)="closeSupplierModal()">
     <div class="modal-card" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h3>🤝 Alta de Nuevo Proveedor</h3>
+        <h3>{{ isEditingSupplier ? '✏️ Modificar Proveedor' : '🤝 Alta de Nuevo Proveedor' }}</h3>
         <button class="btn-close" (click)="closeSupplierModal()">✕</button>
       </div>
 
@@ -424,7 +454,75 @@
       <div class="modal-footer">
         <button class="btn-ghost" (click)="closeSupplierModal()">Cancelar</button>
         <button class="btn-primary" (click)="submitSupplier()" [disabled]="isLoading">
-          {{ isLoading ? 'Guardando...' : 'Crear Proveedor' }}
+          {{ isLoading ? 'Guardando...' : (isEditingSupplier ? '💾 Guardar Cambios' : 'Crear Proveedor') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: MATERIA PRIMA (CREAR / MODIFICAR) -->
+  <div *ngIf="showMaterialModal" class="modal-backdrop" (click)="closeMaterialModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditingMaterial ? '✏️ Modificar Materia Prima' : '➕ Nueva Materia Prima en Cámara' }}</h3>
+        <button class="btn-close" (click)="closeMaterialModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Código Insumo *</label>
+            <input type="text" [(ngModel)]="materialForm.code" class="form-control" />
+          </div>
+          <div class="form-group flex-2">
+            <label>Nombre del Insumo / Ingrediente *</label>
+            <input type="text" [(ngModel)]="materialForm.name" class="form-control" placeholder="Ej. Jamón Cocido Premium" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Categoría</label>
+            <select [(ngModel)]="materialForm.category" class="form-control">
+              <option value="PAN">PAN</option>
+              <option value="FIAMBRE">FIAMBRE</option>
+              <option value="QUESO">QUESO</option>
+              <option value="ADEREZO">ADEREZO</option>
+              <option value="PACKAGING">PACKAGING</option>
+              <option value="BEBIDA">BEBIDA</option>
+            </select>
+          </div>
+          <div class="form-group flex-1">
+            <label>Unidad de Medida</label>
+            <select [(ngModel)]="materialForm.unitOfMeasure" class="form-control">
+              <option value="KG">Kilogramo (KG)</option>
+              <option value="UNIDAD">Unidad (UNIDAD)</option>
+              <option value="LITRO">Litro (LITRO)</option>
+              <option value="PORCION">Porción</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Stock Físico en Cámara</label>
+            <input type="number" min="0" step="0.5" [(ngModel)]="materialForm.currentStock" class="form-control" />
+          </div>
+          <div class="form-group flex-1">
+            <label>Mínimo de Seguridad</label>
+            <input type="number" min="0" step="0.5" [(ngModel)]="materialForm.minimumStock" class="form-control" />
+          </div>
+          <div class="form-group flex-1">
+            <label>Último Precio Compra ($)</label>
+            <input type="number" min="0" step="10" [(ngModel)]="materialForm.lastPurchasePrice" class="form-control" />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="closeMaterialModal()">Cancelar</button>
+        <button class="btn-primary" (click)="submitMaterial()" [disabled]="isLoading">
+          {{ isLoading ? 'Guardando...' : (isEditingMaterial ? '💾 Guardar Cambios' : 'Incorporar Insumo') }}
         </button>
       </div>
     </div>

@@ -55,6 +55,57 @@ public class SupplyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(supplyService.registerPurchase(request));
     }
 
+    @PutMapping("/suppliers/{id}")
+    @Operation(summary = "Modificar datos de un proveedor")
+    public ResponseEntity<SupplierDto> updateSupplier(@PathVariable java.util.UUID id, @Valid @RequestBody CreateSupplierRequest request) {
+        return ResponseEntity.ok(supplyService.updateSupplier(id, request));
+    }
+
+    @PatchMapping("/suppliers/{id}/status")
+    @Operation(summary = "Inhabilitar o habilitar un proveedor")
+    public ResponseEntity<Void> toggleSupplierStatus(@PathVariable java.util.UUID id, @RequestBody java.util.Map<String, Boolean> payload) {
+        supplyService.toggleSupplierStatus(id, payload.get("isActive"));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/materials/{id}")
+    @Operation(summary = "Modificar stock o precio de una materia prima")
+    public ResponseEntity<RawMaterialStockDto> updateMaterial(
+            @PathVariable java.util.UUID id,
+            @RequestBody java.util.Map<String, Object> payload) {
+        java.math.BigDecimal stock = payload.get("stock") != null ? new java.math.BigDecimal(payload.get("stock").toString()) : null;
+        java.math.BigDecimal price = payload.get("price") != null ? new java.math.BigDecimal(payload.get("price").toString()) : null;
+        java.math.BigDecimal minStock = payload.get("minimumStock") != null ? new java.math.BigDecimal(payload.get("minimumStock").toString()) : null;
+        return ResponseEntity.ok(supplyService.updateRawMaterial(id, stock, price, minStock));
+    }
+
+    @PostMapping("/materials")
+    @Operation(summary = "Crear nueva materia prima en catálogo")
+    public ResponseEntity<RawMaterialStockDto> createMaterial(@RequestBody java.util.Map<String, Object> payload) {
+        String code = (String) payload.get("code");
+        String name = (String) payload.get("name");
+        String category = (String) payload.get("category");
+        String unit = (String) payload.get("unitOfMeasure");
+        java.math.BigDecimal stock = payload.get("currentStock") != null ? new java.math.BigDecimal(payload.get("currentStock").toString()) : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal minStock = payload.get("minimumStock") != null ? new java.math.BigDecimal(payload.get("minimumStock").toString()) : java.math.BigDecimal.valueOf(10);
+        java.math.BigDecimal price = payload.get("lastPurchasePrice") != null ? new java.math.BigDecimal(payload.get("lastPurchasePrice").toString()) : java.math.BigDecimal.ZERO;
+        return ResponseEntity.status(HttpStatus.CREATED).body(supplyService.createRawMaterial(code, name, category, unit, stock, minStock, price));
+    }
+
+    @PatchMapping("/materials/{id}/status")
+    @Operation(summary = "Inhabilitar o habilitar una materia prima")
+    public ResponseEntity<Void> toggleMaterialStatus(@PathVariable java.util.UUID id, @RequestBody java.util.Map<String, Boolean> payload) {
+        supplyService.toggleRawMaterialStatus(id, payload.get("isActive"));
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/purchases/{id}")
+    @Operation(summary = "Eliminar o anular una factura de compra")
+    public ResponseEntity<Void> deletePurchase(@PathVariable java.util.UUID id) {
+        supplyService.deletePurchase(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/planning")
     @Operation(summary = "Asistente de Planificación de Compras Matutino según Demanda JIT (US-07)")
     public ResponseEntity<SupplyPlanningDto> getSupplyPlanning() {

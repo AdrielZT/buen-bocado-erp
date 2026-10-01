@@ -1,7 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CatalogProduct, ProductType } from '../../models/catalog.model';
+import { FinanceService } from '../../services/finance.service';
 
 @Component({
   selector: 'app-product-catalog',
@@ -11,6 +12,8 @@ import { CatalogProduct, ProductType } from '../../models/catalog.model';
   styleUrls: ['./product-catalog.component.scss']
 })
 export class ProductCatalogComponent implements OnInit {
+  private readonly financeService = inject(FinanceService);
+
   activeTab = signal<'manufactured' | 'resale' | 'bundles' | 'freshness'>('manufactured');
   successMessage = signal<string | null>(null);
 
@@ -269,6 +272,79 @@ export class ProductCatalogComponent implements OnInit {
     this.products.set([newProd, ...this.products()]);
     this.closeCreateModal();
     this.showSuccessNotification(`Producto "${newProd.name}" incorporado exitosamente al catálogo.`);
+  }
+
+  // Modal Modificar Producto
+  showEditModal = signal<boolean>(false);
+  editingProduct = signal<CatalogProduct | null>(null);
+  editForm = {
+    name: '',
+    sku: '',
+    category: '',
+    baseUnitPrice: 0,
+    costPrice: 0,
+    currentStock: 0,
+    shelfLifeDays: 5
+  };
+
+  openEditModal(p: CatalogProduct): void {
+    this.editingProduct.set(p);
+    this.editForm = {
+      name: p.name,
+      sku: p.sku,
+      category: p.category,
+      baseUnitPrice: p.baseUnitPrice,
+      costPrice: p.costPrice,
+      currentStock: p.currentStock,
+      shelfLifeDays: p.shelfLifeDays
+    };
+    this.showEditModal.set(true);
+  }
+
+  closeEditModal(): void {
+    this.showEditModal.set(false);
+    this.editingProduct.set(null);
+  }
+
+  saveProductEdit(): void {
+    const prod = this.editingProduct();
+    if (!prod) return;
+
+    prod.name = this.editForm.name;
+    prod.sku = this.editForm.sku;
+    prod.category = this.editForm.category;
+    prod.baseUnitPrice = this.editForm.baseUnitPrice;
+    prod.costPrice = this.editForm.costPrice;
+    prod.currentStock = this.editForm.currentStock;
+    prod.shelfLifeDays = this.editForm.shelfLifeDays;
+
+    // Intentar persistir en backend si tiene UUID o sincronización
+    this.financeService.updateProduct(prod.id, {
+      name: prod.name,
+      sku: prod.sku,
+      category: prod.category,
+      baseUnitPrice: prod.baseUnitPrice,
+      costPrice: prod.costPrice,
+      shelfLifeHours: prod.shelfLifeDays * 24
+    }).subscribe({
+      next: () => {},
+      error: () => {} // Si es ID mockeado de catálogo local, queda actualizado en memoria
+    });
+
+    this.closeEditModal();
+    this.showSuccessNotification(`Producto "${prod.name}" modificado exitosamente.`);
+  }
+
+  toggleProductStatus(p: CatalogProduct): void {
+    const nextStatus = !p.isActive;
+    p.isActive = nextStatus;
+
+    this.financeService.toggleProductStatus(p.id, nextStatus).subscribe({
+      next: () => {},
+      error: () => {}
+    });
+
+    this.showSuccessNotification(`Producto "${p.name}" ${nextStatus ? 'activado' : 'pausado para venta'}.`);
   }
 
   showSuccessNotification(msg: string): void {

@@ -472,7 +472,126 @@ Para que la experiencia de usuario sea fluida y profesional entre las distintas 
 
 ---
 
-## 7. Plan de Acción y Próximos Pasos
+## 8. Dictamen Normativo: Desacoplamiento Contable de Compras de Insumos vs. CMV vs. Gastos Operativos (P&L)
+
+### 8.1 Diagnóstico del Problema: La Anomalía de Doble Imputación
+Al importar la contabilidad de Septiembre 2026, el sistema arrojó un resultado operativo distorsionado de **-$2.037.863,70 de EBITDA**, cuando en flujo de caja real (Treinta) hubo un superávit de **+$43.818,32**.
+
+**¿Por qué ocurrió la distorsión?**
+1. Las compras de materias primas del período ($2.167.257,68) fueron ingresadas en la tabla de comprobantes con categoría `INSUMOS`.
+2. El motor financiero de P&L calculó automáticamente el **Costo de Mercadería Vendida (CMV)** de los 1.150 sándwiches efectivamente despachados ($1.655.632,02) a partir de sus recetas (BOM).
+3. **El error de cálculo:** El Estado de Resultados sumó los $2.167.257,68 a los Gastos Operativos (junto a Sueldos por $687.500 y Alquiler por $292.500) Y ADEMÁS restó los $1.655.632,02 en el CMV.
+4. **Consecuencia:** La materia prima se dedujo **DOS VECES**. Se restaron los sándwiches comidos/vendidos Y TAMBIÉN todo el queso, jamón y pan que quedó almacenado en la cámara de frío.
+
+### 8.2 Principio Contable Riguroso (GAAP / NIIF)
+- **Las Compras de Insumos son un Activo de Inventario, no un Gasto Operativo:** Cuando la fábrica compra $2.000.000 de queso y fiambre, no "perdió" dinero; transformó dinero en efectivo (o deuda con proveedores) en mercadería física en stock (Activo Corriente).
+- **El CMV es el único costo de materia prima en el P&L:** En el Estado de Resultados solo se deduce el insumo que **acompañó a una venta**.
+- **Los Gastos Operativos (OPEX) son de Estructura:** Solo deben figurar erogaciones del período no capitalizables en producto (Sueldos del personal, Alquiler de planta, Electricidad, Gas, Fletes, Mantenimiento).
+
+```mermaid
+flowchart TD
+    subgraph ComprasEntrada["ENTRADA DE COMPRAS (Módulo Compras)"]
+        FacturaCompra["Factura de Compra de Pan / Fiambre\n($2.167.257,68)"]
+    end
+
+    subgraph BalanceActivo["BALANCE PATRIMONIAL (Activo Corriente)"]
+        CamaraStock["Inventario en Cámara de Frío / Almacén\n(+ Stock Físico Valuado PEPS)"]
+    end
+
+    subgraph PyLReal["ESTADO DE RESULTADOS (P&L Operativo)"]
+        Ventas["(+) Ventas Netas Despachadas"]
+        CMV["(-) CMV Insumos Consumidos en Lotes Despachados\n($1.655.632,02)"]
+        UtBruta["(=) UTILIDAD BRUTA FABRIL"]
+        Devoluciones["(-) Pérdidas por Devolución / Mermas (RN-02)"]
+        Opex["(-) Gastos Operativos de Estructura\n(Sueldos $687.500 + Alquiler $292.500 + Luz/Gas)\n[NUNCA INCLUYE COMPRAS DE STOCK]"]
+        EBITDA["(=) EBITDA REAL (SUPERÁVIT OPERATIVO)"]
+    end
+
+    FacturaCompra -->|Ingresa al Activo| CamaraStock
+    CamaraStock -->|Solo al despachar sándwiches| CMV
+    Ventas --> UtBruta
+    CMV --> UtBruta
+    UtBruta --> EBITDA
+    Devoluciones --> EBITDA
+    Opex --> EBITDA
+```
+
+### 8.3 Especificación Técnica de Implementación
+1. **Exclusión en el Backend (`FinanceService` / `FinanceAnalyticsEngine`):**
+   - En la consulta que consolida `totalOperatingExpenses`, se deben filtrar o excluir los registros con categoría `INSUMOS` o `MATERIA_PRIMA` (o garantizar `impacts_ebitda = false`).
+   - El monto de insumos consumidos entra pura y exclusivamente a través de la métrica `totalCmv`.
+2. **Visualización en Frontend Angular:**
+   - La tabla de Gastos Operativos no debe mezclar "Compras de Panadería" con "Factura de Luz".
+   - En el P&L se visualiza:
+     - `(+) Ventas Totales`
+     - `(-) CMV Total Insumos (PEPS)`
+     - `(=) Utilidad Bruta Fabril`
+     - `(-) Gastos Operativos de Estructura (Sueldos, Alquileres, Servicios)`
+     - `(=) EBITDA Operativo Consolidado` (reflejando la rentabilidad genuina).
+   - Se incorpora un widget informativo: **"Variación de Inventario"** (`Compras del Período - CMV Consumido = Stock Remanente en Cámara`).
+
+---
+
+## 9. Especificación Funcional de Gobernanza Operativa: CRUD Completo en las 7 Vistas
+
+Para que la administración y los operadores de planta resuelvan errores cotidianos sin recurrir a la base de datos, se especifican las capacidades de creación, modificación, baja lógica (`is_active`) y eliminación en cada módulo:
+
+### 9.1 Pestaña 3: Ventas & Clientes
+1. **Sub-vista "Histórico de Ventas y Facturación":**
+   - Pestaña hermana a la toma de pedidos rápida (POS).
+   - Tabla paginada de todos los comprobantes emitidos: Fecha/Hora, N° Pedido, Cliente, Canal (`POS_MOSTRADOR`, `B2B_DISTRIBUCION`, `B2C_REDES`), Total Facturado, Método de Pago (`EFECTIVO`, `TRANSFERENCIA`, `CUENTA_CORRIENTE`), y Estado (`CONFIRMADO`, `ENTREGADO`, `ANULADO`).
+   - Filtros dinámicos por rango de fechas, cliente y canal comercial.
+   - Modal de detalle: Desglose de sándwiches y precios unitarios facturados.
+2. **Edición Completa de Clientes:**
+   - Botón `✏️ Editar` en la ficha del cliente.
+   - Formulario modal: Modificación de Razón Social, CUIT/DNI, Teléfono, Dirección de entrega, Coordenadas GPS, Lista de Precios asignada y Límite de Crédito en pesos.
+3. **Inhabilitar / Habilitar Cliente (`is_active`):**
+   - Botón toggle `Inhabilitar / Habilitar`. Si un comercio cierra o entra en litigio, se inhabilita para que los preventistas no puedan emitirle pedidos nuevos, preservando intacto todo su historial de pedidos y saldo en cuenta corriente.
+
+### 9.2 Pestaña 2: Finanzas & P&L
+1. **Selección Múltiple con Casillas (Checkboxes) en Gastos:**
+   - Columna inicial con checkboxes individuales por comprobante y checkbox general en la cabecera ("Seleccionar página / todos").
+   - Al marcar $\ge 1$ comprobante, emerge una barra flotante de acciones masivas:
+     - `🗑️ Eliminar Seleccionados` (con modal de confirmación indicando cantidad y monto total a suprimir).
+     - `🏷️ Reclasificar Categoría` (dropdown para mover comprobantes en lote a Sueldos, Alquiler, Servicios, etc.).
+
+### 9.3 Pestaña 4: Catálogo de Productos
+1. **Modificación Completa de Productos:**
+   - Botón `✏️ Editar` en Elaborados, Reventa y Combos.
+   - Modal para ajustar: Nombre comercial, Categoría, Precio de Lista base, Descripción, y Vida Útil en Horas (Shelf-Life: 12h, 24h, 48h).
+2. **Inhabilitar / Habilitar Producto Comercial:**
+   - Switch interactivo `Activo / Pausado`. Permite pausar temporalmente una variedad (ej. si no hay pan pebete en fábrica) para que no figure en los catálogos de venta activa, sin romper recetas históricas ni estadísticas pasadas.
+
+### 9.4 Pestaña 5: Fábrica & Calidad
+1. **Gobernanza de Órdenes de Producción:**
+   - **Selector de Estado en Tiempo Real:** Dropdown o botones de estado en cada orden: `PENDIENTE` ➔ `EN_PROCESO` ➔ `COMPLETADA` / `CANCELADA`.
+   - **Modificación:** Ajuste de cantidad programada antes de iniciar la producción.
+   - **Anulación:** Opción de cancelar la orden con liberación automática de insumos reservados.
+2. **Edición de Recetas (BOM):**
+   - Botón `✏️ Editar Receta`: Permite modificar los insumos e ingredientes por unidad/docena (ej. variar gramos de queso o jamón por cambio de proveedor).
+   - Toggle `Receta Activa / Obsoleta`.
+
+### 9.5 Pestaña 6: Compras & Insumos
+1. **Stock de Materias Primas:**
+   - Botón `✏️ Ajustar Stock`: Modal para registrar conteos físicos de cámara, corrigiendo la cantidad actual con indicación de motivo (ajuste inventario, rotura, merma).
+   - Modificación de Costo Unitario de reposición y Unidad de Medida (kg, u, litros).
+   - Botón `➕ Nueva Materia Prima`: Alta rápida de nuevos ingredientes.
+   - Inhabilitar/Habilitar insumo.
+2. **Facturas de Compra:**
+   - Botón `✏️ Editar`: Corrección de número de factura, fecha o proveedor.
+   - Botón `🗑️ Anular / Eliminar`: Supresión del comprobante con aviso de reversión de stock.
+3. **Proveedores:**
+   - Modal completo de edición de datos de contacto, CUIT y plazos de pago.
+   - Switch `Proveedor Activo / Inactivo`.
+
+### 9.6 Pestaña 7: Logística & Reparto
+1. **Flota de Vehículos y Choferes:**
+   - Botón `✏️ Editar Vehículo`: Actualización de datos del conductor, teléfono de contacto, patente y capacidad en unidades de sándwiches.
+   - Opción `Fuera de Servicio / Inhabilitar` y `Eliminar Vehículo`.
+
+---
+
+## 10. Plan de Acción y Próximos Pasos
 
 1. **Aprobación de la Dirección General:** Confirmación del fundador de que este ordenamiento funcional refleja plenamente su visión del negocio.
 2. **Refinamiento del Frontend Angular (Web Admin):**
@@ -489,3 +608,4 @@ Para que la experiencia de usuario sea fluida y profesional entre las distintas 
 
 > **Compromiso de Producto:**  
 > Con este documento, Buen Bocado ERP adquiere un diseño funcional de nivel mundial: limpio, intuitivo, ágil para operar hoy y robusto para escalar mañana.
+

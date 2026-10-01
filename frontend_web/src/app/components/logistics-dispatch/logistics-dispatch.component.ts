@@ -187,6 +187,107 @@ export class LogisticsDispatchComponent implements OnInit {
     });
   }
 
+  // --- CRUD FLOTA DE REPARTIDORES & VEHÍCULOS ---
+  showVehicleModal = signal<boolean>(false);
+  isEditingVehicle = signal<boolean>(false);
+  vehicleForm = {
+    id: '',
+    name: '',
+    model: '',
+    licensePlate: '',
+    driverName: '',
+    driverPhone: '',
+    capacityUnits: 500,
+    temperatureCelsius: 3.0,
+    status: 'DISPONIBLE' as any
+  };
+
+  openCreateVehicleModal(): void {
+    this.isEditingVehicle.set(false);
+    this.vehicleForm = {
+      id: 'veh-' + Date.now(),
+      name: 'Furgón Térmico ' + (this.fleet().length + 1),
+      model: '',
+      licensePlate: '',
+      driverName: '',
+      driverPhone: '',
+      capacityUnits: 500,
+      temperatureCelsius: 3.0,
+      status: 'DISPONIBLE'
+    };
+    this.showVehicleModal.set(true);
+  }
+
+  openEditVehicleModal(veh: FleetVehicle): void {
+    this.isEditingVehicle.set(true);
+    this.vehicleForm = {
+      id: veh.id,
+      name: veh.name,
+      model: veh.model,
+      licensePlate: veh.licensePlate,
+      driverName: veh.driverName,
+      driverPhone: veh.driverPhone,
+      capacityUnits: veh.capacityUnits,
+      temperatureCelsius: veh.temperatureCelsius,
+      status: veh.status
+    };
+    this.showVehicleModal.set(true);
+  }
+
+  closeVehicleModal(): void {
+    this.showVehicleModal.set(false);
+  }
+
+  saveVehicle(): void {
+    if (!this.vehicleForm.name.trim() || !this.vehicleForm.driverName.trim()) {
+      alert('Por favor complete el nombre del vehículo y el chofer asignado.');
+      return;
+    }
+
+    if (this.isEditingVehicle()) {
+      const v = this.fleet().find(item => item.id === this.vehicleForm.id);
+      if (v) {
+        v.name = this.vehicleForm.name;
+        v.model = this.vehicleForm.model;
+        v.licensePlate = this.vehicleForm.licensePlate;
+        v.driverName = this.vehicleForm.driverName;
+        v.driverPhone = this.vehicleForm.driverPhone;
+        v.capacityUnits = this.vehicleForm.capacityUnits;
+        v.temperatureCelsius = this.vehicleForm.temperatureCelsius;
+        v.status = this.vehicleForm.status;
+      }
+      this.showToast(`Vehículo "${this.vehicleForm.name}" actualizado.`);
+    } else {
+      const newVeh: FleetVehicle = {
+        id: this.vehicleForm.id,
+        name: this.vehicleForm.name,
+        model: this.vehicleForm.model || 'Furgón Térmico Refrigerado',
+        licensePlate: this.vehicleForm.licensePlate || 'AF-' + Math.floor(100 + Math.random() * 900) + '-BB',
+        driverName: this.vehicleForm.driverName,
+        driverPhone: this.vehicleForm.driverPhone || '11-4567-8900',
+        capacityUnits: this.vehicleForm.capacityUnits,
+        temperatureCelsius: this.vehicleForm.temperatureCelsius,
+        status: this.vehicleForm.status
+      };
+      this.fleet.set([...this.fleet(), newVeh]);
+      this.showToast(`Vehículo "${newVeh.name}" incorporado a la flota.`);
+    }
+    this.closeVehicleModal();
+  }
+
+  deleteVehicle(id: string): void {
+    const v = this.fleet().find(item => item.id === id);
+    if (!confirm(`¿Confirma la eliminación del vehículo "${v?.name || id}" de la flota?`)) return;
+    this.fleet.set(this.fleet().filter(item => item.id !== id));
+    this.showToast('Vehículo eliminado de la flota.');
+  }
+
+  toggleVehicleStatus(veh: FleetVehicle): void {
+    const nextStatus = veh.status === 'FUERA_DE_SERVICIO' ? 'DISPONIBLE' : 'FUERA_DE_SERVICIO';
+    veh.status = nextStatus as any;
+    this.showToast(`Vehículo "${veh.name}" puesto en estado: ${nextStatus}`);
+  }
+
   showToast(msg: string): void {
     this.successMessage.set(msg);
     setTimeout(() => {

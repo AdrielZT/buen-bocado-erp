@@ -46,5 +46,5 @@ export interface FleetVehicle {
   driverPhone: string;
   capacityUnits: number;
   temperatureCelsius: number;
-  status: 'DISPONIBLE' | 'EN_REPARTO' | 'MANTENIMIENTO';
+  status: 'DISPONIBLE' | 'EN_REPARTO' | 'MANTENIMIENTO' | 'FUERA_DE_SERVICIO';
 }

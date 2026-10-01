@@ -268,15 +268,24 @@ public class FinanceAnalyticsEngineService {
         BigDecimal fixedExpenses = BigDecimal.ZERO;
         BigDecimal variableExpenses = BigDecimal.ZERO;
         BigDecimal totalOperatingExpenses = BigDecimal.ZERO;
+        BigDecimal rawMaterialPurchasesTotal = BigDecimal.ZERO;
 
         List<OperatingExpenseBreakdownDto> operatingExpensesBreakdown = new ArrayList<>();
 
         for (OperatingExpense exp : periodExpenses) {
-            totalOperatingExpenses = totalOperatingExpenses.add(exp.getAmount());
-
-            // Punto 3: Tratamiento de Costos Semifijos según naturaleza y sensibilidad
             String cat = exp.getCategory() != null ? exp.getCategory().toUpperCase() : "OTROS";
             BigDecimal amt = exp.getAmount();
+
+            // DESACOPLAMIENTO CONTABLE (GAAP/NIIF): Las compras de insumos para stock van al activo
+            // y su costo operativo ya se deduce a través del CMV (PEPS) de los sándwiches vendidos.
+            if ("INSUMOS".equals(cat) || "MATERIA_PRIMA".equals(cat)) {
+                rawMaterialPurchasesTotal = rawMaterialPurchasesTotal.add(amt);
+                continue;
+            }
+
+            totalOperatingExpenses = totalOperatingExpenses.add(amt);
+
+            // Punto 3: Tratamiento de Costos Semifijos según naturaleza y sensibilidad
             BigDecimal fixedPortion = BigDecimal.ZERO;
             BigDecimal variablePortion = BigDecimal.ZERO;
 
@@ -426,6 +435,9 @@ public class FinanceAnalyticsEngineService {
                 .fixedExpenses(fixedExpenses)
                 .variableExpenses(variableExpenses)
                 .totalOperatingExpenses(totalOperatingExpenses)
+                .rawMaterialPurchasesTotal(rawMaterialPurchasesTotal)
+                .inventoryVariationAmount(rawMaterialPurchasesTotal.subtract(totalCmv))
+                .cashSurplus(totalSales.subtract(rawMaterialPurchasesTotal).subtract(totalOperatingExpenses))
                 .operatingProfit(operatingProfit)
                 .operatingMarginPercent(operatingMarginPercent.setScale(2, RoundingMode.HALF_UP))
                 .netProfit(netProfit)

@@ -103,10 +103,104 @@ public class SupplyService {
                             .totalValue(val)
                             .stockStatus(status)
                             .suggestedReorderQty(suggested.setScale(2, RoundingMode.HALF_UP))
+                            .isActive(Boolean.TRUE.equals(m.getIsActive()))
                             .build();
                 })
                 .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public SupplierDto updateSupplier(UUID id, CreateSupplierRequest request) {
+        Supplier s = supplierRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Proveedor no encontrado: " + id));
+        if (request.getBusinessName() != null) s.setBusinessName(request.getBusinessName().trim());
+        if (request.getTaxId() != null) s.setTaxId(request.getTaxId().trim());
+        if (request.getContactPhone() != null) s.setContactPhone(request.getContactPhone().trim());
+        if (request.getEmail() != null) s.setEmail(request.getEmail().trim());
+        Supplier saved = supplierRepository.save(s);
+        return SupplierDto.builder()
+                .id(saved.getId())
+                .businessName(saved.getBusinessName())
+                .taxId(saved.getTaxId())
+                .contactPhone(saved.getContactPhone())
+                .email(saved.getEmail())
+                .isActive(saved.getIsActive())
+                .build();
+    }
+
+    @Transactional
+    public void toggleSupplierStatus(UUID id, Boolean isActive) {
+        Supplier s = supplierRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Proveedor no encontrado: " + id));
+        boolean active = isActive != null ? isActive : !Boolean.TRUE.equals(s.getIsActive());
+        s.setIsActive(active);
+        supplierRepository.save(s);
+    }
+
+    @Transactional
+    public RawMaterialStockDto updateRawMaterial(UUID id, BigDecimal stock, BigDecimal lastPurchasePrice, BigDecimal minStock) {
+        RawMaterial m = rawMaterialRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Materia prima no encontrada: " + id));
+        if (stock != null) m.setCurrentStock(stock);
+        if (lastPurchasePrice != null) m.setLastPurchasePrice(lastPurchasePrice);
+        if (minStock != null) m.setMinimumStock(minStock);
+        RawMaterial saved = rawMaterialRepository.save(m);
+        return RawMaterialStockDto.builder()
+                .id(saved.getId())
+                .code(saved.getCode())
+                .name(saved.getName())
+                .category(saved.getCategory())
+                .unitOfMeasure(saved.getUnitOfMeasure())
+                .currentStock(saved.getCurrentStock())
+                .minimumStock(saved.getMinimumStock())
+                .lastPurchasePrice(saved.getLastPurchasePrice())
+                .totalValue(saved.getCurrentStock().multiply(saved.getLastPurchasePrice()).setScale(2, RoundingMode.HALF_UP))
+                .stockStatus("OPTIMO")
+                .isActive(Boolean.TRUE.equals(saved.getIsActive()))
+                .build();
+    }
+
+    @Transactional
+    public RawMaterialStockDto createRawMaterial(String code, String name, String category, String unitOfMeasure, BigDecimal initialStock, BigDecimal minStock, BigDecimal price) {
+        RawMaterial m = RawMaterial.builder()
+                .code(code != null ? code : "MAT-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase())
+                .name(name)
+                .category(category != null ? category : "ALIMENTARIO")
+                .unitOfMeasure(unitOfMeasure != null ? unitOfMeasure : "kg")
+                .currentStock(initialStock != null ? initialStock : BigDecimal.ZERO)
+                .minimumStock(minStock != null ? minStock : BigDecimal.valueOf(10))
+                .lastPurchasePrice(price != null ? price : BigDecimal.ZERO)
+                .isActive(true)
+                .build();
+        RawMaterial saved = rawMaterialRepository.save(m);
+        return RawMaterialStockDto.builder()
+                .id(saved.getId())
+                .code(saved.getCode())
+                .name(saved.getName())
+                .category(saved.getCategory())
+                .unitOfMeasure(saved.getUnitOfMeasure())
+                .currentStock(saved.getCurrentStock())
+                .minimumStock(saved.getMinimumStock())
+                .lastPurchasePrice(saved.getLastPurchasePrice())
+                .totalValue(saved.getCurrentStock().multiply(saved.getLastPurchasePrice()).setScale(2, RoundingMode.HALF_UP))
+                .stockStatus("OPTIMO")
+                .isActive(true)
+                .build();
+    }
+
+    @Transactional
+    public void toggleRawMaterialStatus(UUID id, Boolean isActive) {
+        RawMaterial m = rawMaterialRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Materia prima no encontrada: " + id));
+        boolean active = isActive != null ? isActive : !Boolean.TRUE.equals(m.getIsActive());
+        m.setIsActive(active);
+        rawMaterialRepository.save(m);
+    }
+
+    @Transactional
+    public void deletePurchase(UUID invoiceId) {
+        purchaseInvoiceRepository.deleteById(invoiceId);
     }
 
     @Transactional
