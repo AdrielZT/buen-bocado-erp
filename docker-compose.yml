@@ -19,5 +19,36 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: buen-bocado-erp-backend:latest
+    container_name: buenbocado-backend-app
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/buenbocado_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgrespassword
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend_web
+      dockerfile: Dockerfile
+    image: buen-bocado-erp-frontend:latest
+    container_name: buenbocado-frontend-app
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
 volumes:
   postgres_data:
