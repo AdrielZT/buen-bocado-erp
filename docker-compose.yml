@@ -10,6 +10,13 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d buenbocado_db"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    networks:
+      - buenbocado-network
     restart: unless-stopped
 
   redis:
@@ -17,6 +24,8 @@ services:
     container_name: buenbocado-redis
     ports:
       - "6379:6379"
+    networks:
+      - buenbocado-network
     restart: unless-stopped
 
   backend:
@@ -26,8 +35,10 @@ services:
     image: buen-bocado-erp-backend:latest
     container_name: buenbocado-backend-app
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/buenbocado_db
       SPRING_DATASOURCE_USERNAME: postgres
@@ -36,6 +47,8 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
     ports:
       - "8080:8080"
+    networks:
+      - buenbocado-network
     restart: unless-stopped
 
   frontend:
@@ -48,7 +61,13 @@ services:
       - backend
     ports:
       - "80:80"
+    networks:
+      - buenbocado-network
     restart: unless-stopped
+
+networks:
+  buenbocado-network:
+    driver: bridge
 
 volumes:
   postgres_data:
