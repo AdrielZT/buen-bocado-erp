@@ -29,5 +29,6 @@ EXPOSE 8080
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
   "-XX:MaxRAMPercentage=75.0", \
+  "-Djava.net.preferIPv4Stack=true", \
   "-Djava.security.egd=file:/dev/./urandom", \
   "-jar", "app.jar"]
