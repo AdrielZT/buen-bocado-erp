@@ -1,0 +1,432 @@
+<div class="supply-container">
+  <!-- Header de Sección -->
+  <header class="supply-header">
+    <div class="header-titles">
+      <div class="badge-module">Módulo 4: Cadena de Suministro JIT (US-07 & US-08)</div>
+      <h1>📦 Compras, Proveedores & Stock de Insumos</h1>
+      <p class="subtitle">
+        Control de materias primas en cámara de frío, reposición con costeo PEPS y planificación de compras matutinas.
+      </p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="openSupplierModal()">
+        🤝 + Nuevo Proveedor
+      </button>
+      <button class="btn-primary" (click)="openPurchaseModal()">
+        ➕ Registrar Factura de Compra
+      </button>
+      <button class="btn-icon" (click)="loadAllData()" [title]="'Actualizar datos'">
+        🔄
+      </button>
+    </div>
+  </header>
+
+  <!-- Notificaciones -->
+  <div *ngIf="successMessage" class="alert alert-success">
+    <span>✅ {{ successMessage }}</span>
+    <button (click)="successMessage = null">✕</button>
+  </div>
+  <div *ngIf="errorMessage" class="alert alert-error">
+    <span>⚠️ {{ errorMessage }}</span>
+    <button (click)="errorMessage = null">✕</button>
+  </div>
+
+  <!-- KPI Cards de Stock y Compras -->
+  <section class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon icon-stock">❄️</div>
+      <div class="kpi-info">
+        <span class="kpi-label">Valuación Stock en Frío</span>
+        <span class="kpi-value">${{ totalStockValue | number:'1.2-2' }}</span>
+        <span class="kpi-sub">Total en materias primas</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" [class.alert-border]="criticalMaterialsCount > 0">
+      <div class="kpi-icon icon-alert">⚠️</div>
+      <div class="kpi-info">
+        <span class="kpi-label">Insumos Bajo Punto de Pedido</span>
+        <span class="kpi-value" [class.text-danger]="criticalMaterialsCount > 0">{{ criticalMaterialsCount }}</span>
+        <span class="kpi-sub">{{ criticalMaterialsCount > 0 ? 'Requieren reposición urgente' : 'Niveles de stock óptimos' }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon icon-invoice">🧾</div>
+      <div class="kpi-info">
+        <span class="kpi-label">Compras Facturadas (Mes)</span>
+        <span class="kpi-value">${{ totalPurchasesAmount | number:'1.2-2' }}</span>
+        <span class="kpi-sub">{{ purchases.length }} facturas asentadas</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon icon-plan">⚡</div>
+      <div class="kpi-info">
+        <span class="kpi-label">Presupuesto Sugerido JIT</span>
+        <span class="kpi-value">${{ planning?.totalEstimatedPurchasesCost || 0 | number:'1.2-2' }}</span>
+        <span class="kpi-sub">Planificación compras matutina</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pestañas de Navegación del Módulo -->
+  <nav class="subnav-tabs">
+    <button [class.active]="activeTab === 'stock'" (click)="activeTab = 'stock'">
+      ❄️ Stock en Cámara de Frío ({{ rawMaterials.length }})
+    </button>
+    <button [class.active]="activeTab === 'purchases'" (click)="activeTab = 'purchases'">
+      🧾 Facturas de Compra ({{ purchases.length }})
+    </button>
+    <button [class.active]="activeTab === 'suppliers'" (click)="activeTab = 'suppliers'">
+      🤝 Directorio de Proveedores ({{ suppliers.length }})
+    </button>
+    <button [class.active]="activeTab === 'planning'" (click)="activeTab = 'planning'">
+      ⚡ Planificador Matutino JIT (US-07)
+    </button>
+  </nav>
+
+  <!-- TAB 1: Stock en Cámara de Frío -->
+  <div *ngIf="activeTab === 'stock'" class="tab-content">
+    <div class="table-container">
+      <div class="section-title-bar">
+        <h3>Materias Primas & Insumos Perecederos</h3>
+        <span class="badge-info">Cálculo de CMV basado en PEPS</span>
+      </div>
+      <div class="stock-grid">
+        <div *ngFor="let item of rawMaterials" class="stock-item-card" [class.card-critical]="item.stockStatus === 'CRITICO'">
+          <div class="stock-card-header">
+            <span class="category-badge" [style.backgroundColor]="getCategoryColor(item.category)">
+              {{ item.category }}
+            </span>
+            <span class="status-pill" [ngClass]="item.stockStatus.toLowerCase()">
+              {{ item.stockStatus }}
+            </span>
+          </div>
+
+          <div class="stock-main-info">
+            <h4 class="item-name">{{ item.name }}</h4>
+            <span class="item-code">{{ item.code }}</span>
+          </div>
+
+          <div class="stock-quantities">
+            <div class="qty-box">
+              <span class="qty-label">Stock Actual</span>
+              <span class="qty-value">{{ item.currentStock | number:'1.1-2' }} <small>{{ item.unitOfMeasure }}</small></span>
+            </div>
+            <div class="qty-box">
+              <span class="qty-label">Mínimo de Seguridad</span>
+              <span class="qty-value text-muted">{{ item.minimumStock | number:'1.1-2' }} <small>{{ item.unitOfMeasure }}</small></span>
+            </div>
+          </div>
+
+          <!-- Barra de Stock -->
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill"
+                 [style.width.%]="getStockPercentage(item.currentStock, item.minimumStock)"
+                 [style.backgroundColor]="item.stockStatus === 'CRITICO' ? '#ef4444' : (item.stockStatus === 'ADVERTENCIA' ? '#f59e0b' : '#10b981')">
+            </div>
+          </div>
+
+          <div class="stock-card-footer">
+            <div class="price-info">
+              <span class="footer-label">Último Costo Compra</span>
+              <span class="footer-value">${{ item.lastPurchasePrice | number:'1.2-2' }} / {{ item.unitOfMeasure }}</span>
+            </div>
+            <div class="value-info">
+              <span class="footer-label">Valuación Total</span>
+              <span class="footer-value font-bold">${{ item.totalValue | number:'1.2-2' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: Historial de Facturas de Compra -->
+  <div *ngIf="activeTab === 'purchases'" class="tab-content">
+    <div class="table-container">
+      <div class="section-title-bar">
+        <div>
+          <h3>Comprobantes y Facturas de Compra de Insumos</h3>
+          <p class="section-desc">Histórico de abastecimiento de materias primas con impacto en costeo PEPS</p>
+        </div>
+        <button class="btn-primary-sm" (click)="openPurchaseModal()">+ Nueva Factura</button>
+      </div>
+
+      <!-- Barra de Filtros de Fecha con Presets -->
+      <div class="filter-date-toolbar">
+        <div class="preset-buttons">
+          <button type="button" class="btn-preset" [class.active]="filterPreset === 'CURRENT'" (click)="applyDateFilter('CURRENT')">
+            📅 Mes Actual (Hoy)
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset === 'AUGUST'" (click)="applyDateFilter('AUGUST')">
+            📅 Agosto 2026 (Real)
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset === 'SEPTEMBER'" (click)="applyDateFilter('SEPTEMBER')">
+            📅 Septiembre 2026
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset === 'ALL'" (click)="applyDateFilter('ALL')">
+            🌐 Todo el Historial
+          </button>
+        </div>
+
+        <div class="date-inputs-group">
+          <div class="date-input-field">
+            <label>Desde:</label>
+            <input type="date" [(ngModel)]="startDate" (change)="applyDateFilter()" />
+          </div>
+          <div class="date-input-field">
+            <label>Hasta:</label>
+            <input type="date" [(ngModel)]="endDate" (change)="applyDateFilter()" />
+          </div>
+          <button type="button" class="btn-filter-apply" (click)="applyDateFilter()">
+            🔍 Filtrar
+          </button>
+        </div>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nº Comprobante</th>
+            <th>Fecha</th>
+            <th>Proveedor</th>
+            <th>Insumos Comprados</th>
+            <th>Total Facturado</th>
+            <th>Estado Pago</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of purchases">
+            <td class="font-mono font-bold">{{ p.invoiceNumber }}</td>
+            <td>{{ p.invoiceDate }}</td>
+            <td class="font-semibold">{{ p.supplierName }}</td>
+            <td>
+              <div class="items-chips">
+                <span *ngFor="let it of p.items" class="item-chip">
+                  {{ it.quantity }} {{ it.unitOfMeasure }} {{ it.rawMaterialName }} (${{ it.unitPrice }})
+                </span>
+              </div>
+            </td>
+            <td class="font-bold text-success">${{ p.totalAmount | number:'1.2-2' }}</td>
+            <td>
+              <span class="status-pill" [class.optimo]="p.paymentStatus === 'PAID'" [class.critico]="p.paymentStatus === 'PENDING'">
+                {{ p.paymentStatus === 'PAID' ? 'PAGADA' : 'PENDIENTE' }}
+              </span>
+            </td>
+          </tr>
+          <tr *ngIf="purchases.length === 0">
+            <td colspan="6" class="empty-state">No se registran facturas de compra aún.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 3: Directorio de Proveedores -->
+  <div *ngIf="activeTab === 'suppliers'" class="tab-content">
+    <div class="table-container">
+      <div class="section-title-bar">
+        <h3>Proveedores Homologados de Fábrica</h3>
+        <button class="btn-secondary-sm" (click)="openSupplierModal()">+ Registrar Proveedor</button>
+      </div>
+
+      <div class="suppliers-grid">
+        <div *ngFor="let s of suppliers" class="supplier-card">
+          <div class="supplier-icon">🏢</div>
+          <div class="supplier-content">
+            <h4 class="supplier-name">{{ s.businessName }}</h4>
+            <div class="supplier-meta">
+              <span><strong>CUIT:</strong> {{ s.taxId || 'No informado' }}</span>
+              <span><strong>Tel:</strong> {{ s.contactPhone || 'No informado' }}</span>
+              <span><strong>Email:</strong> {{ s.email || 'No informado' }}</span>
+            </div>
+          </div>
+          <div class="supplier-actions">
+            <button class="btn-secondary-xs" (click)="openPurchaseModal(s.id)">
+              + Comprar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: Planificador JIT Matutino (US-07) -->
+  <div *ngIf="activeTab === 'planning'" class="tab-content">
+    <div class="table-container">
+      <div class="section-title-bar">
+        <div>
+          <h3>Asistente de Compras Matutino según Demanda (US-07)</h3>
+          <p class="section-desc">
+            Calcula automáticamente los insumos netos necesarios considerando la demanda de pedidos confirmados y el stock existente en cámara.
+          </p>
+        </div>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Insumo</th>
+            <th>Código</th>
+            <th>Stock Actual</th>
+            <th>Mínimo Seguridad</th>
+            <th>Demanda Estimada</th>
+            <th>Compra Sugerida</th>
+            <th>Costo Unit. Reposición</th>
+            <th>Presupuesto Línea</th>
+            <th>Urgencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of planning?.planningItems">
+            <td class="font-semibold">{{ row.rawMaterialName }}</td>
+            <td class="font-mono text-muted">{{ row.rawMaterialCode }}</td>
+            <td>{{ row.currentStock }} {{ row.unitOfMeasure }}</td>
+            <td class="text-muted">{{ row.minimumStock }} {{ row.unitOfMeasure }}</td>
+            <td>{{ row.requiredForPendingOrders }} {{ row.unitOfMeasure }}</td>
+            <td class="font-bold" [class.text-primary]="row.suggestedPurchaseQty > 0">
+              {{ row.suggestedPurchaseQty }} {{ row.unitOfMeasure }}
+            </td>
+            <td>${{ row.estimatedUnitCost | number:'1.2-2' }}</td>
+            <td class="font-bold">${{ row.estimatedTotalCost | number:'1.2-2' }}</td>
+            <td>
+              <span class="status-pill" [ngClass]="row.urgency.toLowerCase()">
+                {{ row.urgency }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="table-total-row">
+            <td colspan="7" class="text-right"><strong>Presupuesto Total de Compra Sugerido:</strong></td>
+            <td colspan="2" class="font-bold text-success font-xl">
+              ${{ planning?.totalEstimatedPurchasesCost || 0 | number:'1.2-2' }}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR FACTURA DE COMPRA -->
+  <div *ngIf="showPurchaseModal" class="modal-backdrop" (click)="closePurchaseModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>➕ Registrar Factura de Compra de Insumos</h3>
+        <button class="btn-close" (click)="closePurchaseModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Proveedor *</label>
+            <select [(ngModel)]="purchasePayload.supplierId" class="form-control">
+              <option *ngFor="let s of suppliers" [value]="s.id">{{ s.businessName }}</option>
+            </select>
+          </div>
+          <div class="form-group flex-1">
+            <label>Nº Factura / Remito</label>
+            <input type="text" [(ngModel)]="purchasePayload.invoiceNumber" class="form-control" placeholder="FAC-A-0001-..." />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Fecha de Compra *</label>
+            <input type="date" [(ngModel)]="purchasePayload.invoiceDate" class="form-control" />
+          </div>
+          <div class="form-group flex-1">
+            <label>Estado de Pago</label>
+            <select [(ngModel)]="purchasePayload.paymentStatus" class="form-control">
+              <option value="PAID">Pagada (Contado / Transferencia)</option>
+              <option value="PENDING">Pendiente (Cuenta Corriente)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="items-section">
+          <div class="items-header">
+            <h4>Detalle de Insumos Comprados</h4>
+            <button type="button" class="btn-secondary-xs" (click)="addPurchaseItemLine()">+ Agregar Insumo</button>
+          </div>
+
+          <div *ngFor="let line of purchasePayload.items; let i = index" class="item-form-row">
+            <div class="form-group flex-2">
+              <label *ngIf="i === 0">Materia Prima / Insumo</label>
+              <select [(ngModel)]="line.rawMaterialId" (change)="onMaterialChange(i)" class="form-control">
+                <option *ngFor="let m of rawMaterials" [value]="m.id">
+                  {{ m.name }} ({{ m.unitOfMeasure }})
+                </option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label *ngIf="i === 0">Cantidad</label>
+              <input type="number" min="0.1" step="0.1" [(ngModel)]="line.quantity" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label *ngIf="i === 0">Precio Unitario ($)</label>
+              <input type="number" min="0" step="1" [(ngModel)]="line.unitPrice" class="form-control" />
+            </div>
+            <div class="form-group flex-1 subtotal-col">
+              <label *ngIf="i === 0">Subtotal</label>
+              <span class="subtotal-val">${{ (line.quantity * line.unitPrice) | number:'1.2-2' }}</span>
+            </div>
+            <button *ngIf="purchasePayload.items.length > 1" type="button" class="btn-remove" (click)="removePurchaseItemLine(i)" title="Eliminar línea">✕</button>
+          </div>
+        </div>
+
+        <div class="total-summary-box">
+          <span>Total Factura:</span>
+          <span class="total-number">${{ calculateModalTotal() | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="closePurchaseModal()">Cancelar</button>
+        <button class="btn-primary" (click)="submitPurchase()" [disabled]="isLoading">
+          {{ isLoading ? 'Guardando...' : 'Confirmar e Ingresar Stock' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NUEVO PROVEEDOR -->
+  <div *ngIf="showSupplierModal" class="modal-backdrop" (click)="closeSupplierModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>🤝 Alta de Nuevo Proveedor</h3>
+        <button class="btn-close" (click)="closeSupplierModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Razón Social / Nombre Comercial *</label>
+          <input type="text" [(ngModel)]="newSupplier.businessName" class="form-control" placeholder="Ej. Molino Harinero Central" />
+        </div>
+        <div class="form-group">
+          <label>CUIT / Identificación Fiscal</label>
+          <input type="text" [(ngModel)]="newSupplier.taxId" class="form-control" placeholder="30-12345678-9" />
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Teléfono de Contacto</label>
+            <input type="text" [(ngModel)]="newSupplier.contactPhone" class="form-control" placeholder="11-4567-8901" />
+          </div>
+          <div class="form-group flex-1">
+            <label>Email de Pedidos</label>
+            <input type="email" [(ngModel)]="newSupplier.email" class="form-control" placeholder="ventas@proveedor.com" />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="closeSupplierModal()">Cancelar</button>
+        <button class="btn-primary" (click)="submitSupplier()" [disabled]="isLoading">
+          {{ isLoading ? 'Guardando...' : 'Crear Proveedor' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

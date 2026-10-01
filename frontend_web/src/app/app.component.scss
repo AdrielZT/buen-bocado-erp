@@ -1,0 +1,254 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  color: #1e293b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.erp-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 270px;
+  background: #0f172a;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-right: 1px solid #1e293b;
+
+  .brand {
+    padding: 1.5rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid #1e293b;
+
+    .logo-box {
+      font-size: 1.75rem;
+      background: #1e293b;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+    }
+
+    .brand-name {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: #f8fafc;
+    }
+
+    .brand-tag {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      display: block;
+      margin-top: 0.15rem;
+    }
+  }
+
+  .nav-menu {
+    flex: 1;
+    padding: 1.25rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
+    .nav-section-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      padding: 0 0.75rem 0.5rem;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.75rem 0.85rem;
+      border-radius: 8px;
+      color: #cbd5e1;
+      text-decoration: none;
+      transition: all 0.15s ease;
+
+      .nav-icon {
+        font-size: 1.35rem;
+        line-height: 1;
+      }
+
+      .nav-text {
+        display: flex;
+        flex-direction: column;
+
+        .nav-title {
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #f1f5f9;
+        }
+
+        .nav-desc {
+          font-size: 0.7rem;
+          color: #64748b;
+          margin-top: 0.1rem;
+        }
+      }
+
+      &:hover {
+        background: #1e293b;
+        color: white;
+
+        .nav-text .nav-title {
+          color: white;
+        }
+      }
+
+      &.active {
+        background: #2563eb;
+        color: white;
+
+        .nav-text .nav-title {
+          color: white;
+          font-weight: 700;
+        }
+
+        .nav-text .nav-desc {
+          color: #bfdbfe;
+        }
+      }
+    }
+  }
+
+  .sidebar-footer {
+    padding: 1.25rem;
+    border-top: 1px solid #1e293b;
+    background: #090d16;
+
+    .server-status {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.5rem;
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 8px #10b981;
+      }
+
+      .status-info {
+        display: flex;
+        flex-direction: column;
+
+        strong {
+          font-size: 0.75rem;
+          color: #f1f5f9;
+        }
+
+        small {
+          font-size: 0.65rem;
+          color: #94a3b8;
+        }
+      }
+    }
+
+    .version-tag {
+      font-size: 0.65rem;
+      color: #64748b;
+      font-family: monospace;
+    }
+  }
+}
+
+/* MAIN WRAPPER */
+.main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  .topbar {
+    background: white;
+    height: 60px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2rem;
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+
+      .factory-badge {
+        font-size: 0.8rem;
+        font-weight: 600;
+        background: #f1f5f9;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        color: #334155;
+      }
+
+      .dispatch-badge {
+        font-size: 0.775rem;
+        font-weight: 600;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+      }
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      .user-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+
+        .user-avatar {
+          font-size: 1.25rem;
+        }
+
+        .user-details {
+          display: flex;
+          flex-direction: column;
+          text-align: right;
+
+          .user-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #0f172a;
+          }
+
+          .user-role {
+            font-size: 0.7rem;
+            color: #64748b;
+          }
+        }
+      }
+    }
+  }
+
+  .content-body {
+    flex: 1;
+    overflow-y: auto;
+  }
+}

@@ -1,0 +1,527 @@
+<div class="module-view">
+  <!-- HEADER GENERAL DE VENTAS -->
+  <div class="module-header">
+    <div class="header-titles">
+      <div class="badge-module">Módulo 2: Comercialización & Distribución</div>
+      <h1 class="module-title">🛒 Ventas, Clientes & Mostrador</h1>
+      <p class="module-subtitle">Venta rápida inmediata de productos en cámara (MTS), pedidos programados B2B y cuentas corrientes.</p>
+    </div>
+
+    <div class="header-actions">
+      <button *ngIf="activeTab() === 'orders'" class="btn btn-primary" (click)="openOrderModal()">
+        ➕ Nuevo Pedido Programado B2B
+      </button>
+      <button class="btn btn-icon" (click)="loadData()" title="Refrescar datos">
+        🔄
+      </button>
+    </div>
+  </div>
+
+  <!-- ALERTAS -->
+  @if (successMessage()) {
+    <div class="alert alert-success">
+      <span>✅ {{ successMessage() }}</span>
+      <button (click)="successMessage.set(null)">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="alert alert-danger">
+      <span>⚠️ {{ errorMessage() }}</span>
+      <button (click)="errorMessage.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- SUB-PESTAÑAS CANÓNICAS DE VENTAS -->
+  <nav class="subnav-tabs">
+    <button [class.active]="activeTab() === 'pos'" (click)="activeTab.set('pos')">
+      ⚡ Venta Rápida / Mostrador (POS)
+    </button>
+    <button [class.active]="activeTab() === 'orders'" (click)="activeTab.set('orders')">
+      📋 Monitor de Pedidos B2B ({{ dashboard()?.salesOrdersBreakdown?.length || 4 }})
+    </button>
+    <button [class.active]="activeTab() === 'clients'" (click)="activeTab.set('clients')">
+      👥 Directorio de Clientes ({{ clientAccounts.length }})
+    </button>
+    <button [class.active]="activeTab() === 'accounts'" (click)="activeTab.set('accounts')">
+      💳 Cuentas Corrientes & Cobranzas
+    </button>
+    <button [class.active]="activeTab() === 'prices'" (click)="activeTab.set('prices')">
+      🏷️ Listas de Precios & Escalas
+    </button>
+  </nav>
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 1: VENTA RÁPIDA / MOSTRADOR (POS INMEDIATO)             -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'pos') {
+    <div class="pos-layout">
+      <!-- Catálogo de Productos Listos para Entrega Inmediata -->
+      <div class="pos-catalog-section">
+        <div class="pos-section-header">
+          <div>
+            <h3>Catálogo de Entrega Inmediata (Stock de Cámara & Reventa)</h3>
+            <p>Sándwiches elaborados para stock (vida útil de 5 días en frío), bebidas y combos listos para despachar.</p>
+          </div>
+          <span class="badge success">⚡ Cierre Rápido de Venta</span>
+        </div>
+
+        <div class="pos-grid">
+          <div *ngFor="let item of posCatalog" class="pos-item-card" (click)="addToPosCart(item)">
+            <div class="pos-item-top">
+              <span class="category-pill">{{ item.category }}</span>
+              <span *ngIf="item.freshnessStatus === 'ROTACION_URGENTE'" class="freshness-pill warning" title="Día 3-4 de elaboración: acelerar rotación">
+                🟡 Día 3 en frío
+              </span>
+              <span *ngIf="item.freshnessStatus === 'OPTIMA'" class="freshness-pill success" title="Día 1-2 recién elaborado">
+                🟢 Frescura Óptima
+              </span>
+            </div>
+
+            <h4 class="pos-item-title">{{ item.name }}</h4>
+
+            <div class="pos-item-bottom">
+              <span class="pos-item-price">${{ item.unitPrice | number:'1.0-0' }}</span>
+              <button class="btn-add-cart">+ Añadir</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel Lateral: Carrito de Venta y Cobro Directo -->
+      <div class="pos-cart-panel">
+        <div class="cart-header">
+          <h3>🧾 Ticket de Venta Actual</h3>
+          <button *ngIf="posCart().length > 0" class="btn-clear" (click)="clearCart()">Vaciar</button>
+        </div>
+
+        <div class="cart-body">
+          <div class="form-group mb-2">
+            <label>Cliente Asignado:</label>
+            <select [ngModel]="posSelectedClientId()" (ngModelChange)="posSelectedClientId.set($event)" class="form-control">
+              <option *ngFor="let c of clientAccounts" [value]="c.id">{{ c.businessName }} ({{ c.clientType }})</option>
+            </select>
+          </div>
+
+          <div class="form-group mb-3">
+            <label>Forma de Cobro:</label>
+            <select [ngModel]="posPaymentMethod()" (ngModelChange)="posPaymentMethod.set($event)" class="form-control">
+              <option value="CASH">Efectivo (Caja Mostrador)</option>
+              <option value="TRANSFER">Transferencia / QR Mercado Pago</option>
+              <option value="ACCOUNT_CREDIT">Cuenta Corriente B2B</option>
+            </select>
+          </div>
+
+          <!-- Líneas del Carrito -->
+          <div class="cart-items-list">
+            <div *ngFor="let c of posCart(); let i = index" class="cart-row">
+              <div class="cart-row-info">
+                <strong>{{ c.name }}</strong>
+                <small>${{ c.unitPrice | number:'1.0-0' }} c/u</small>
+              </div>
+
+              <div class="cart-row-controls">
+                <button class="btn-qty" (click)="updateCartQty(i, -1)">-</button>
+                <span class="qty-number">{{ c.quantity }}</span>
+                <button class="btn-qty" (click)="updateCartQty(i, 1)">+</button>
+              </div>
+
+              <div class="cart-row-subtotal">
+                ${{ (c.quantity * c.unitPrice) | number:'1.0-0' }}
+              </div>
+
+              <button class="btn-del" (click)="removeFromCart(i)">✕</button>
+            </div>
+
+            <div *ngIf="posCart().length === 0" class="cart-empty-state">
+              <span>🛒 El carrito está vacío.</span>
+              <small>Haz clic en los productos para agregarlos al ticket de venta.</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="cart-footer">
+          <div class="cart-totals">
+            <div class="total-line">
+              <span>Unidades Totales:</span>
+              <strong>{{ getCartTotalUnits() }} u.</strong>
+            </div>
+            <div class="total-line main">
+              <span>Total a Cobrar:</span>
+              <strong class="total-price">${{ getCartTotal() | number:'1.0-0' }}</strong>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-block"
+                  [disabled]="posCart().length === 0 || isLoading()"
+                  (click)="confirmPosSale()">
+            {{ isLoading() ? 'Procesando Venta...' : '💳 Confirmar Venta y Descontar Stock' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 2: MONITOR DE PEDIDOS B2B PROGRAMADOS                   -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'orders') {
+    <div class="tab-pane-content">
+      <!-- Barra de Filtros de Fecha con Presets -->
+      <div class="filter-date-toolbar">
+        <div class="preset-buttons">
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'CURRENT'" (click)="applyDateFilter('CURRENT')">
+            📅 Mes Actual (Hoy)
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'AUGUST'" (click)="applyDateFilter('AUGUST')">
+            📅 Agosto 2026 (Real - 12 Pedidos)
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'SEPTEMBER'" (click)="applyDateFilter('SEPTEMBER')">
+            📅 Septiembre 2026
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'ALL'" (click)="applyDateFilter('ALL')">
+            🌐 Todo el Historial
+          </button>
+        </div>
+
+        <div class="date-inputs-group">
+          <div class="date-input-field">
+            <label>Desde:</label>
+            <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event); applyDateFilter()" />
+          </div>
+          <div class="date-input-field">
+            <label>Hasta:</label>
+            <input type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event); applyDateFilter()" />
+          </div>
+          <button type="button" class="btn-filter-apply" (click)="applyDateFilter()">
+            🔍 Filtrar
+          </button>
+        </div>
+      </div>
+
+      <!-- Resumen del Período Filtrado -->
+      <div class="orders-summary-strip">
+        <div class="summary-pill">
+          <span class="pill-label">Pedidos en Período:</span>
+          <span class="pill-val">{{ getFilteredOrders().length }} pedidos</span>
+        </div>
+        <div class="summary-pill">
+          <span class="pill-label">Unidades Totales:</span>
+          <span class="pill-val font-bold">{{ totalFilteredUnits() | number }} u.</span>
+        </div>
+        <div class="summary-pill">
+          <span class="pill-label">Facturación Total:</span>
+          <span class="pill-val text-success font-bold">{{ totalFilteredAmount() | currency:'ARS':'symbol-narrow':'1.0-0' }}</span>
+        </div>
+        <div class="summary-search">
+          <input type="text"
+                 class="search-input"
+                 placeholder="🔍 Buscar por cliente o sándwich..."
+                 [ngModel]="searchTerm()"
+                 (ngModelChange)="searchTerm.set($event)" />
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">Detalle</th>
+              <th>Fecha Entrega</th>
+              <th>Cliente B2B</th>
+              <th>Canal</th>
+              <th>Resumen de Sándwiches</th>
+              <th class="text-right">Unidades</th>
+              <th class="text-right">Total Facturado</th>
+              <th class="text-right">% Ventas</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of getFilteredOrders(); track order.orderId) {
+              <tr class="order-row" [class.row-expanded]="expandedOrders()[order.orderId]">
+                <td>
+                  <button class="btn-expand"
+                          (click)="toggleOrder(order.orderId)"
+                          [title]="expandedOrders()[order.orderId] ? 'Ocultar desglose' : 'Ver productos'">
+                    {{ expandedOrders()[order.orderId] ? '▼' : '▶' }}
+                  </button>
+                </td>
+                <td class="font-mono">{{ order.orderDate }}</td>
+                <td class="font-semibold">{{ order.clientName }}</td>
+                <td>
+                  <span class="badge" [class.b2b]="order.clientType === 'B2B_STREET'" [class.b2c]="order.clientType === 'B2C_SOCIAL'">
+                    {{ order.clientType === 'B2B_STREET' ? 'B2B Reparto' : 'Redes Directo' }}
+                  </span>
+                </td>
+                <td>{{ order.productsSummary }}</td>
+                <td class="text-right font-bold">{{ order.totalUnits | number }} u.</td>
+                <td class="text-right font-bold text-success">{{ order.totalAmount | currency:'ARS':'symbol-narrow':'1.0-0' }}</td>
+                <td class="text-right font-mono">{{ order.percentOfSales | number:'1.1-1' }}%</td>
+              </tr>
+
+              <!-- Desglose de ítems anidados -->
+              @if (expandedOrders()[order.orderId] && order.items && order.items.length > 0) {
+                <tr class="nested-items-row">
+                  <td colspan="8">
+                    <div class="nested-items-wrapper">
+                      <table class="nested-table">
+                        <thead>
+                          <tr>
+                            <th>Sándwich / Producto</th>
+                            <th>Categoría</th>
+                            <th class="text-right">Cantidad</th>
+                            <th class="text-right">Precio Pactado</th>
+                            <th class="text-right">Subtotal</th>
+                            <th class="text-right">% del Pedido</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (item of order.items; track item.productId) {
+                            <tr>
+                              <td class="font-semibold">{{ item.productName }}</td>
+                              <td><span class="badge-cat">{{ item.productCategory }}</span></td>
+                              <td class="text-right font-bold">{{ item.quantity }} u.</td>
+                              <td class="text-right font-mono">{{ item.unitPrice | currency:'ARS':'symbol-narrow':'1.0-0' }}</td>
+                              <td class="text-right font-mono font-bold">{{ item.subtotal | currency:'ARS':'symbol-narrow':'1.0-0' }}</td>
+                              <td class="text-right font-mono text-muted">{{ item.percentOfOrder | number:'1.1-1' }}%</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+            @if (getFilteredOrders().length === 0) {
+              <tr>
+                <td colspan="8" class="empty-orders-cell">
+                  <div class="empty-orders-box">
+                    <span class="empty-icon">📋</span>
+                    <h4>No se registran pedidos en el período seleccionado ({{ startDate() }} a {{ endDate() }})</h4>
+                    <p>Puedes cambiar las fechas en el selector superior o cargar directamente los datos del período cerrado:</p>
+                    <button type="button" class="btn btn-primary" (click)="applyDateFilter('AUGUST')">
+                      📅 Cargar Agosto 2026 (12 Pedidos Reales - $3.7M)
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 3: DIRECTORIO DE CLIENTES                               -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'clients') {
+    <div class="tab-pane-content">
+      <div class="clients-grid">
+        <div *ngFor="let c of clientAccounts" class="client-card">
+          <div class="client-card-header">
+            <div>
+              <h3 class="client-name">{{ c.businessName }}</h3>
+              <span class="client-cuit">CUIT: {{ c.taxId }}</span>
+            </div>
+            <span class="badge" [class.b2b]="c.clientType !== 'B2C_SOCIAL'" [class.b2c]="c.clientType === 'B2C_SOCIAL'">
+              {{ c.clientType }}
+            </span>
+          </div>
+
+          <div class="client-card-body">
+            <p><strong>👤 Contacto:</strong> {{ c.contactName }}</p>
+            <p><strong>📞 Teléfono:</strong> {{ c.phone }}</p>
+            <p><strong>📍 Dirección:</strong> {{ c.deliveryAddress }}</p>
+            <p><strong>✉️ Email:</strong> {{ c.email }}</p>
+          </div>
+
+          <div class="client-card-footer">
+            <span class="credit-tag">Límite Crédito: ${{ c.creditLimit | number:'1.0-0' }}</span>
+            <button class="btn-sm btn-secondary" (click)="openPaymentModal(c)">Ver Saldo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 4: CUENTAS CORRIENTES & COBRANZAS                       -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'accounts') {
+    <div class="tab-pane-content">
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Contacto</th>
+              <th>Límite de Crédito</th>
+              <th>Saldo Adeudado Actual</th>
+              <th>Disponible</th>
+              <th>Estado de Cuenta</th>
+              <th class="text-right">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let acc of clientAccounts">
+              <td class="font-semibold">{{ acc.businessName }}</td>
+              <td>{{ acc.contactName }} ({{ acc.phone }})</td>
+              <td class="font-mono">${{ acc.creditLimit | number:'1.0-0' }}</td>
+              <td class="font-mono font-bold" [class.text-danger]="acc.currentBalance > 0">
+                ${{ acc.currentBalance | number:'1.0-0' }}
+              </td>
+              <td class="font-mono text-muted">
+                ${{ (acc.creditLimit - acc.currentBalance) | number:'1.0-0' }}
+              </td>
+              <td>
+                <span class="status-pill"
+                      [class.optimo]="acc.accountStatus === 'AL_DIA'"
+                      [class.critico]="acc.accountStatus === 'EN_RIESGO' || acc.accountStatus === 'BLOQUEADO_MOROSO'">
+                  {{ acc.accountStatus === 'AL_DIA' ? 'Al Día' : 'En Riesgo de Límite' }}
+                </span>
+              </td>
+              <td class="text-right">
+                <button class="btn-primary-xs" (click)="openPaymentModal(acc)">
+                  💵 Registrar Cobranza
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 5: LISTAS DE PRECIOS & ESCALAS                          -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'prices') {
+    <div class="tab-pane-content">
+      <div class="table-container">
+        <div class="section-title-bar">
+          <div>
+            <h3>Esquemas de Precios Acordados por Cliente & Descuentos por Escala</h3>
+            <p class="section-desc">Tarifas preferenciales según convenio con kioscos, cafeterías y promociones por docena.</p>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Cliente / Destino</th>
+              <th>Producto</th>
+              <th>Cantidad Mínima Escala</th>
+              <th>Precio Pactado Especial</th>
+              <th>Descuento Otorgado</th>
+              <th>Condición de Aplicación</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of priceRules">
+              <td class="font-semibold">{{ r.clientName }}</td>
+              <td>{{ r.productName }}</td>
+              <td class="font-bold">{{ r.minVolumeQty }} unidades</td>
+              <td class="font-mono font-bold text-success">${{ r.specialPrice | number:'1.0-0' }}</td>
+              <td><span class="badge success">{{ r.discountPercent }}% off</span></td>
+              <td><small class="text-muted">Automático al superar escala mínima</small></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: REGISTRAR COBRO / PAGO DE CUENTA CORRIENTE -->
+  @if (showPaymentModal() && selectedAccountForPayment()) {
+    <div class="modal-backdrop" (click)="closePaymentModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>💵 Registrar Recibo de Cobranza</h3>
+          <button class="btn-close" (click)="closePaymentModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="payment-info-box">
+            <p><strong>Cliente:</strong> {{ selectedAccountForPayment()?.businessName }}</p>
+            <p><strong>Saldo Deudor Actual:</strong> ${{ selectedAccountForPayment()?.currentBalance | number:'1.0-0' }}</p>
+          </div>
+
+          <div class="form-group">
+            <label>Monto a Cobrar ($): *</label>
+            <input type="number" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Número de Recibo / Comprobante:</label>
+            <input type="text" [ngModel]="paymentVoucher()" (ngModelChange)="paymentVoucher.set($event)" class="form-control" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closePaymentModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="confirmPayment()">Confirmar Cobranza</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: NUEVO PEDIDO B2B -->
+  @if (showOrderModal()) {
+    <div class="modal-backdrop" (click)="closeOrderModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>➕ Nuevo Pedido Mayorista B2B</h3>
+          <button class="btn-close" (click)="closeOrderModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          @if (orderError()) {
+            <div class="alert alert-danger">{{ orderError() }}</div>
+          }
+
+          <div class="form-group">
+            <label>Cliente:</label>
+            <select [ngModel]="orderClientId()" (ngModelChange)="orderClientId.set($event)" class="form-control">
+              @for (c of clients(); track c.id) {
+                <option [value]="c.id">{{ c.businessName }} ({{ c.clientType }})</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Fecha Estimada de Entrega:</label>
+            <input type="date" [ngModel]="orderDeliveryDate()" (ngModelChange)="orderDeliveryDate.set($event)" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Sándwich / Producto:</label>
+            <select [ngModel]="orderProductId()" (ngModelChange)="orderProductId.set($event)" class="form-control">
+              @for (p of products(); track p.id) {
+                <option [value]="p.id">{{ p.name }} (Base: ${{ p.baseUnitPrice }})</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Cantidad (unidades):</label>
+              <input type="number" min="1" [ngModel]="orderQuantity()" (ngModelChange)="orderQuantity.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Precio Unitario Acordado ($):</label>
+              <input type="number" min="1" [ngModel]="orderUnitPrice()" (ngModelChange)="orderUnitPrice.set($event)" class="form-control" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeOrderModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveOrder()" [disabled]="isSavingOrder()">
+            {{ isSavingOrder() ? 'Guardando...' : 'Confirmar Pedido' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

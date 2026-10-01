@@ -1,0 +1,287 @@
+<div class="module-view">
+  <!-- HEADER GENERAL DE CATÁLOGO -->
+  <div class="module-header">
+    <div class="header-titles">
+      <div class="badge-module">Módulo 6: Inventario & Catálogo Flexible</div>
+      <h1 class="module-title">📦 Catálogo Multi-Categoría & Combos</h1>
+      <p class="module-subtitle">Administración de sándwiches y nuevos elaborados de prueba, mercadería de reventa y packs promocionales.</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="openCreateModal('RESALE')">
+        🥤 + Mercadería de Reventa
+      </button>
+      <button class="btn btn-primary" (click)="openCreateModal('MANUFACTURED')">
+        🥪 + Nuevo Elaborado Propio
+      </button>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="alert alert-success">
+      <span>✅ {{ successMessage() }}</span>
+      <button (click)="successMessage.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- SUB-PESTAÑAS CANÓNICAS DE CATÁLOGO -->
+  <nav class="subnav-tabs">
+    <button [class.active]="activeTab() === 'manufactured'" (click)="activeTab.set('manufactured')">
+      🥪 Elaborados Propios ({{ getManufacturedProducts().length }})
+    </button>
+    <button [class.active]="activeTab() === 'resale'" (click)="activeTab.set('resale')">
+      🥤 Mercadería de Reventa ({{ getResaleProducts().length }})
+    </button>
+    <button [class.active]="activeTab() === 'bundles'" (click)="activeTab.set('bundles')">
+      🎁 Packs & Combos ({{ getBundleProducts().length }})
+    </button>
+    <button [class.active]="activeTab() === 'freshness'" (click)="activeTab.set('freshness')">
+      ❄️ Semáforo PEPS en Cámara (5 Días)
+    </button>
+  </nav>
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 1: ELABORADOS PROPIOS (Sándwiches, Pizzas, Postres)     -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'manufactured') {
+    <div class="tab-pane-content">
+      <div class="catalog-grid">
+        <div *ngFor="let p of getManufacturedProducts()" class="product-card">
+          <div class="product-card-top">
+            <span class="category-pill">{{ p.category }}</span>
+            <span class="shelf-pill">❄️ {{ p.shelfLifeDays }} días frío</span>
+          </div>
+
+          <div class="product-main">
+            <h3 class="prod-title">{{ p.name }}</h3>
+            <span class="prod-sku font-mono">{{ p.sku }}</span>
+          </div>
+
+          <div class="stock-stats-row">
+            <div class="stock-cell">
+              <span class="lbl">Stock Cámara</span>
+              <strong class="val">{{ p.currentStock }} {{ p.unitOfMeasure }}</strong>
+            </div>
+            <div class="stock-cell">
+              <span class="lbl">Costo Teórico</span>
+              <span class="val text-muted">${{ p.costPrice | number:'1.0-0' }}</span>
+            </div>
+            <div class="stock-cell">
+              <span class="lbl">Precio Venta</span>
+              <strong class="val text-success">${{ p.baseUnitPrice | number:'1.0-0' }}</strong>
+            </div>
+          </div>
+
+          <div class="product-card-footer">
+            <div class="margin-tag">
+              Margen Bruto: <strong>{{ ((p.baseUnitPrice - p.costPrice) / p.baseUnitPrice * 100) | number:'1.1-1' }}%</strong>
+            </div>
+            <span class="status-pill optimo">Activo</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 2: MERCADERÍA DE REVENTA (Gaseosas, Snacks)             -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'resale') {
+    <div class="tab-pane-content">
+      <div class="table-container">
+        <div class="section-title-bar">
+          <div>
+            <h3>Artículos de Reventa Comercializados</h3>
+            <p class="section-desc">Productos adquiridos a terceros sin proceso de elaboración interna (ingresan por compra y se venden con margen directo).</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" (click)="openCreateModal('RESALE')">+ Agregar Artículo</button>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Código SKU</th>
+              <th>Producto Comercializado</th>
+              <th>Categoría</th>
+              <th class="text-right">Stock Disponible</th>
+              <th class="text-right">Costo Compra Proveedor</th>
+              <th class="text-right">Precio Venta Mostrador</th>
+              <th class="text-right">Margen Directo</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of getResaleProducts()">
+              <td class="font-mono text-muted">{{ p.sku }}</td>
+              <td class="font-semibold">{{ p.name }}</td>
+              <td><span class="category-pill">{{ p.category }}</span></td>
+              <td class="text-right font-bold">{{ p.currentStock }} {{ p.unitOfMeasure }}</td>
+              <td class="text-right font-mono">${{ p.costPrice | number:'1.0-0' }}</td>
+              <td class="text-right font-mono font-bold text-success">${{ p.baseUnitPrice | number:'1.0-0' }}</td>
+              <td class="text-right font-mono font-bold">
+                {{ ((p.baseUnitPrice - p.costPrice) / p.baseUnitPrice * 100) | number:'1.1-1' }}%
+              </td>
+              <td><span class="status-pill optimo">En Venta</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 3: PACKS & COMBOS (EXPLOSIÓN DE INVENTARIO)             -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'bundles') {
+    <div class="tab-pane-content">
+      <div class="bundles-grid">
+        <div *ngFor="let b of getBundleProducts()" class="bundle-card">
+          <div class="bundle-header">
+            <div>
+              <span class="bundle-tag">🎁 COMBO PROMOCIONAL</span>
+              <h3 class="bundle-title">{{ b.name }}</h3>
+              <span class="bundle-sku font-mono">{{ b.sku }}</span>
+            </div>
+            <div class="bundle-price-box">
+              <span class="price-lbl">Precio Combo</span>
+              <strong class="bundle-price">${{ b.baseUnitPrice | number:'1.0-0' }}</strong>
+            </div>
+          </div>
+
+          <div class="bundle-body">
+            <h4>Componentes Incluidos (Explosión en Tiempo Real):</h4>
+            <div class="bundle-items-list">
+              <div *ngFor="let it of b.bundleItems" class="bundle-item-row">
+                <span class="item-qty font-bold">{{ it.quantity }}x</span>
+                <span class="item-name">{{ it.productName }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bundle-footer">
+            <span class="margin-info">Costo combinado: ${{ b.costPrice | number:'1.0-0' }} (Margen {{ ((b.baseUnitPrice - b.costPrice) / b.baseUnitPrice * 100) | number:'1.1-1' }}%)</span>
+            <span class="badge success">⚡ Descuenta Stock Automático</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 4: SEMÁFORO PEPS EN CÁMARA (5 DÍAS)                     -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'freshness') {
+    <div class="tab-pane-content">
+      <div class="table-container">
+        <div class="section-title-bar">
+          <div>
+            <h3>Control Bromatológico de Frescura y Rotación PEPS (Regla de 5 Días)</h3>
+            <p class="section-desc">Monitoreo de sándwiches y elaborados en cámara entre 2°C y 6°C para evitar desperdicios y activar ofertas relámpago.</p>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Producto Elaborado</th>
+              <th>Días en Frío</th>
+              <th>Vida Útil Máxima</th>
+              <th>Stock en Cámara</th>
+              <th>Estado de Frescura PEPS</th>
+              <th>Recomendación de Comercialización</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of getManufacturedProducts()">
+              <td class="font-semibold">{{ p.name }}</td>
+              <td class="font-bold">
+                {{ p.batchAgeDays || 1 }} días
+              </td>
+              <td>{{ p.shelfLifeDays }} días</td>
+              <td class="font-bold">{{ p.currentStock }} {{ p.unitOfMeasure }}</td>
+              <td>
+                <span class="freshness-pill"
+                      [class.success]="p.freshnessStatus === 'OPTIMA'"
+                      [class.warning]="p.freshnessStatus === 'ROTACION_URGENTE'"
+                      [class.danger]="p.freshnessStatus === 'VENCIDO'">
+                  {{ p.freshnessStatus === 'OPTIMA' ? '🟢 Frescura Óptima (Día 1-2)' : (p.freshnessStatus === 'ROTACION_URGENTE' ? '🟡 Oferta Relámpago (Día 3-4)' : '🔴 Descarte por Vencimiento') }}
+                </span>
+              </td>
+              <td>
+                <small *ngIf="p.freshnessStatus === 'OPTIMA'" class="text-success">Despacho regular a kioscos o mostrador.</small>
+                <small *ngIf="p.freshnessStatus === 'ROTACION_URGENTE'" class="text-warning font-bold">Lanzar combo promocional 2x1 en redes.</small>
+                <small *ngIf="p.freshnessStatus === 'VENCIDO'" class="text-danger font-bold">Bloqueado para venta. Retirar de cámara.</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: NUEVO PRODUCTO -->
+  @if (showCreateModal()) {
+    <div class="modal-backdrop" (click)="closeCreateModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>➕ {{ newProductType() === 'MANUFACTURED' ? 'Nuevo Producto Elaborado' : 'Nuevo Artículo de Reventa' }}</h3>
+          <button class="btn-close" (click)="closeCreateModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Código SKU</label>
+              <input type="text" [ngModel]="newProductSku()" (ngModelChange)="newProductSku.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-2">
+              <label>Nombre del Producto *</label>
+              <input type="text" [ngModel]="newProductName()" (ngModelChange)="newProductName.set($event)" placeholder="Ej. Pizza Fría Especial Fugazzeta" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Categoría</label>
+              <select [ngModel]="newProductCategory()" (ngModelChange)="newProductCategory.set($event)" class="form-control">
+                <option value="PEBETE">Pebete</option>
+                <option value="TRIPLE_MIGA">Triple de Miga</option>
+                <option value="MILANESA">Milanesa</option>
+                <option value="PIZZA_FRIA">Pizza Fría</option>
+                <option value="POSTRE">Postre Artesanal</option>
+                <option value="HELADO">Helado</option>
+                <option value="JUGO">Jugo Natural</option>
+                <option value="BEBIDA">Bebida / Gaseosa</option>
+                <option value="SNACK">Snack</option>
+              </select>
+            </div>
+            <div class="form-group flex-1" *ngIf="newProductType() === 'MANUFACTURED'">
+              <label>Vida Útil en Frío (Días)</label>
+              <input type="number" min="1" max="30" [ngModel]="newProductShelfLife()" (ngModelChange)="newProductShelfLife.set($event)" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Costo Unitario ($)</label>
+              <input type="number" min="0" [ngModel]="newProductCost()" (ngModelChange)="newProductCost.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Precio de Venta Mostrador ($) *</label>
+              <input type="number" min="0" [ngModel]="newProductPrice()" (ngModelChange)="newProductPrice.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Stock Inicial</label>
+              <input type="number" min="0" [ngModel]="newProductStock()" (ngModelChange)="newProductStock.set($event)" class="form-control" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeCreateModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveNewProduct()">Guardar Producto</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

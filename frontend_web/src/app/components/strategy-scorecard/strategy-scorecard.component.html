@@ -1,0 +1,418 @@
+<div class="module-view">
+  <!-- HEADER GENERAL DE DIRECCIÓN -->
+  <div class="module-header">
+    <div class="header-titles">
+      <div class="badge-module">Módulo 1: Dirección & Estrategia (CPO / CEO)</div>
+      <h1 class="module-title">🎯 Dirección General & Tablero Estratégico</h1>
+      <p class="module-subtitle">Visión gerencial de alto nivel, Balanced Scorecard (CMI) y metas predictivas de producción.</p>
+    </div>
+
+    <div class="header-actions">
+      <div class="date-filter-box">
+        <label>Período:</label>
+        <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" />
+        <span>a</span>
+        <input type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" />
+        <button class="btn btn-primary btn-sm" (click)="loadData()" [disabled]="isLoading()">
+          {{ isLoading() ? 'Actualizando...' : 'Filtrar' }}
+        </button>
+      </div>
+
+      <button *ngIf="activeTab() === 'cmi'" class="btn btn-success" (click)="openAddIndicatorModal()">
+        ➕ Añadir Indicador CMI
+      </button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger">{{ errorMessage() }}</div>
+  }
+
+  <!-- SUB-PESTAÑAS CANÓNICAS DE DIRECCIÓN -->
+  <nav class="subnav-tabs">
+    <button [class.active]="activeTab() === 'executive'" (click)="activeTab.set('executive')">
+      📊 Tablero Ejecutivo (Visión 30s)
+    </button>
+    <button [class.active]="activeTab() === 'cmi'" (click)="activeTab.set('cmi')">
+      🎯 Cuadro de Mando Integral (CMI)
+    </button>
+    <button [class.active]="activeTab() === 'targets'" (click)="activeTab.set('targets')">
+      ⚡ Metas & Simulación Predictiva
+    </button>
+  </nav>
+
+  @if (isLoading()) {
+    <div class="loading-spinner">
+      <p>Consolidando indicadores estratégicos...</p>
+    </div>
+  } @else if (dashboard()) {
+
+    <!-- =================================================================== -->
+    <!-- SUB-PESTAÑA 1: TABLERO EJECUTIVO (VISIÓN 30s)                       -->
+    <!-- =================================================================== -->
+    @if (activeTab() === 'executive') {
+      <div class="tab-pane-content">
+        <!-- 4 KPIs Gerenciales Consolidados -->
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Facturación Neta Total</span>
+              <span class="badge">Ventas</span>
+            </div>
+            <div class="card-value">{{ dashboard()?.totalSales | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+            <div class="card-subtext">Total cobrado y a cobrar del período</div>
+          </div>
+
+          <div class="card highlight">
+            <div class="card-header">
+              <span class="card-title">Margen Bruto de Fábrica</span>
+              <span class="badge success">{{ dashboard()?.grossMarginPercent | number:'1.1-1' }}%</span>
+            </div>
+            <div class="card-value">{{ dashboard()?.grossProfit | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+            <div class="card-subtext">Contribución directa tras deducir CMV</div>
+          </div>
+
+          <div class="card" [class.highlight-accent]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) >= 0" [class.highlight-danger]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0">
+            <div class="card-header">
+              <span class="card-title">Resultado Operativo</span>
+              <span class="badge" [class.warning]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0" [class.success]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) >= 0">
+                {{ ((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) >= 0 ? 'Superávit Operativo' : 'Déficit de Explotación' }}
+              </span>
+            </div>
+            <div class="card-value" [class.text-danger]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0">
+              {{ (dashboard()?.operatingProfit ?? dashboard()?.ebitda) | currency:'ARS':'symbol-narrow':'1.0-0' }}
+            </div>
+            <div class="card-subtext">Resultado Neto: {{ (dashboard()?.netProfit ?? dashboard()?.ebit) | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Punto de Equilibrio</span>
+              <span class="badge">Meta Mensual</span>
+            </div>
+            <div class="card-value">{{ dashboard()?.weightedBreakEvenUnits | number }} u.</div>
+            <div class="card-subtext">Facturación umbral: {{ dashboard()?.weightedBreakEvenAmount | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+          </div>
+        </div>
+
+        <!-- DIAGNÓSTICO ESTRATÉGICO EN 30 SEGUNDOS -->
+        <div class="executive-diagnosis-grid">
+          <div class="diagnosis-card">
+            <div class="diagnosis-icon">🌡️</div>
+            <div class="diagnosis-info">
+              <h4>Semáforo de Salud Financiera</h4>
+              <p *ngIf="(dashboard()?.ebitda || 0) >= 0" class="status-text text-success">
+                ✅ <strong>Superávit Operativo:</strong> La facturación cubre el 100% del costo de insumos y los gastos fijos de planta.
+              </p>
+              <p *ngIf="(dashboard()?.ebitda || 0) < 0" class="status-text text-danger">
+                ⚠️ <strong>Alerta de Cobertura:</strong> Faltan ${{ (dashboard()?.weightedBreakEvenAmount || 0) - (dashboard()?.totalSales || 0) | number:'1.0-0' }} para alcanzar el umbral de absorción de gastos fijos.
+              </p>
+            </div>
+          </div>
+
+          <div class="diagnosis-card">
+            <div class="diagnosis-icon">🥪</div>
+            <div class="diagnosis-info">
+              <h4>Velocidad de Absorción Fabril</h4>
+              <p class="status-text">
+                Se han producido y entregado <strong>{{ getTotalProducedUnits() }} unidades</strong>.
+                Progreso hacia el punto de equilibrio: <strong>{{ (getTotalProducedUnits() / (dashboard()?.weightedBreakEvenUnits || 2138) * 100) | number:'1.1-1' }}%</strong>.
+              </p>
+              <div class="mini-progress-bar">
+                <div class="fill" [style.width.%]="(getTotalProducedUnits() / (dashboard()?.weightedBreakEvenUnits || 2138) * 100)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="diagnosis-card">
+            <div class="diagnosis-icon">❄️</div>
+            <div class="diagnosis-info">
+              <h4>Control de Frescura (Regla 5 Días)</h4>
+              <p class="status-text">
+                Tasa de mermas/devoluciones de planta: <strong>{{ dashboard()?.returnRatePercent || 0 | number:'1.2-2' }}%</strong>
+                <span class="badge success" style="margin-left: 0.5rem;">Bajo el tope del 3.0%</span>
+              </p>
+              <small class="text-muted">Cámara de frío operando dentro de los parámetros bromatológicos ideales.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- =================================================================== -->
+    <!-- SUB-PESTAÑA 2: CUADRO DE MANDO INTEGRAL (BALANCED SCORECARD)        -->
+    <!-- =================================================================== -->
+    @if (activeTab() === 'cmi') {
+      <div class="tab-pane-content">
+        <div class="scorecard-table-card">
+          <div class="scorecard-table-header">
+            <div>
+              <h2>Matriz Estratégica: Cuadro de Mando Integral (CMI)</h2>
+              <p class="scorecard-hint">Indicadores clave de rendimiento (KPIs) agrupados por perspectiva de gestión según el modelo Norton & Kaplan.</p>
+            </div>
+            <button class="btn btn-success btn-sm" (click)="openAddIndicatorModal()">
+              ➕ Nuevo Indicador
+            </button>
+          </div>
+
+          <table class="scorecard-table">
+            <thead>
+              <tr>
+                <th style="width: 22%;">Indicador</th>
+                <th style="width: 26%;">Explicación / ¿Qué Mide?</th>
+                <th style="width: 20%;">Fórmula Matemática</th>
+                <th style="width: 15%;" class="text-right">Valor Actual</th>
+                <th style="width: 17%;">Objetivo / Meta de Mejora</th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <!-- 1. PERSPECTIVA FINANCIERA -->
+              <tr class="perspective-section-header">
+                <td colspan="5">
+                  <div class="perspective-title">
+                    <span class="p-icon">📈</span>
+                    <span>PERSPECTIVA FINANCIERA (Rentabilidad, Costos y Solvencia Fabril)</span>
+                  </div>
+                </td>
+              </tr>
+              @for (ind of getFinancialIndicators(); track ind.id) {
+                <tr class="indicator-row">
+                  <td>
+                    <div class="ind-name-box">
+                      <strong class="ind-name">{{ ind.name }}</strong>
+                      @if (ind.isCustom) {
+                        <span class="custom-badge">Personalizado</span>
+                      }
+                    </div>
+                  </td>
+                  <td><p class="ind-desc">{{ ind.explanation }}</p></td>
+                  <td><code class="formula-badge">{{ ind.formula }}</code></td>
+                  <td class="text-right">
+                    <span class="current-val-pill">{{ ind.currentValue }}</span>
+                  </td>
+                  <td>
+                    <div class="target-goal-box">
+                      <span class="target-goal-text">🎯 {{ ind.targetGoal }}</span>
+                      @if (ind.isCustom) {
+                        <button class="btn-icon-delete" title="Eliminar indicador" (click)="removeCustomIndicator(ind.id)">🗑️</button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+
+              <!-- 2. PERSPECTIVA DE PROCESOS INTERNOS -->
+              <tr class="perspective-section-header">
+                <td colspan="5">
+                  <div class="perspective-title">
+                    <span class="p-icon">⚙️</span>
+                    <span>PERSPECTIVA DE PROCESOS INTERNOS (Calidad en Frío, Productividad y Mermas)</span>
+                  </div>
+                </td>
+              </tr>
+              @for (ind of getProcessesIndicators(); track ind.id) {
+                <tr class="indicator-row">
+                  <td>
+                    <div class="ind-name-box">
+                      <strong class="ind-name">{{ ind.name }}</strong>
+                      @if (ind.isCustom) {
+                        <span class="custom-badge">Personalizado</span>
+                      }
+                    </div>
+                  </td>
+                  <td><p class="ind-desc">{{ ind.explanation }}</p></td>
+                  <td><code class="formula-badge">{{ ind.formula }}</code></td>
+                  <td class="text-right">
+                    <span class="current-val-pill">{{ ind.currentValue }}</span>
+                  </td>
+                  <td>
+                    <div class="target-goal-box">
+                      <span class="target-goal-text">🎯 {{ ind.targetGoal }}</span>
+                      @if (ind.isCustom) {
+                        <button class="btn-icon-delete" title="Eliminar indicador" (click)="removeCustomIndicator(ind.id)">🗑️</button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+
+              <!-- 3. PERSPECTIVA DE CLIENTES -->
+              <tr class="perspective-section-header">
+                <td colspan="5">
+                  <div class="perspective-title">
+                    <span class="p-icon">👥</span>
+                    <span>PERSPECTIVA DE CLIENTES (Ticket Promedio, Demanda y Fidelización B2B)</span>
+                  </div>
+                </td>
+              </tr>
+              @for (ind of getClientsIndicators(); track ind.id) {
+                <tr class="indicator-row">
+                  <td>
+                    <div class="ind-name-box">
+                      <strong class="ind-name">{{ ind.name }}</strong>
+                      @if (ind.isCustom) {
+                        <span class="custom-badge">Personalizado</span>
+                      }
+                    </div>
+                  </td>
+                  <td><p class="ind-desc">{{ ind.explanation }}</p></td>
+                  <td><code class="formula-badge">{{ ind.formula }}</code></td>
+                  <td class="text-right">
+                    <span class="current-val-pill">{{ ind.currentValue }}</span>
+                  </td>
+                  <td>
+                    <div class="target-goal-box">
+                      <span class="target-goal-text">🎯 {{ ind.targetGoal }}</span>
+                      @if (ind.isCustom) {
+                        <button class="btn-icon-delete" title="Eliminar indicador" (click)="removeCustomIndicator(ind.id)">🗑️</button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- =================================================================== -->
+    <!-- SUB-PESTAÑA 3: METAS & SIMULACIÓN PREDICTIVA                       -->
+    <!-- =================================================================== -->
+    @if (activeTab() === 'targets') {
+      <div class="tab-pane-content">
+        <!-- SIMULADOR INTERACTIVO DE GANANCIA DESEADA -->
+        <div class="profit-simulator-card">
+          <div class="sim-header">
+            <div class="sim-titles">
+              <span class="sim-badge">Simulador Estratégico</span>
+              <h3>🔮 Simulador de Facturación y Metas por Beneficio Deseado</h3>
+              <p>Establece un objetivo de ganancia neta para el mes y el sistema calculará exactamente cuánto necesitas facturar y cuántos sándwiches extra producir.</p>
+            </div>
+            <div class="sim-input-box">
+              <label>Objetivo de Ganancia Neta Deseada ($):</label>
+              <div class="input-with-symbol">
+                <span>$</span>
+                <input type="number" step="50000" min="0" [ngModel]="desiredProfitTarget()" (ngModelChange)="desiredProfitTarget.set($event)" />
+              </div>
+            </div>
+          </div>
+
+          <div class="sim-results-grid">
+            <div class="sim-result-box">
+              <span class="res-label">Punto de Equilibrio Base (Cubrir Costos)</span>
+              <span class="res-val">{{ dashboard()?.weightedBreakEvenUnits | number }} unidades</span>
+              <span class="res-sub">${{ dashboard()?.weightedBreakEvenAmount | number:'1.0-0' }}</span>
+            </div>
+            <div class="sim-result-box highlight">
+              <span class="res-label">Meta Total de Producción con Ganancia</span>
+              <span class="res-val text-primary">{{ getSimulatedTotalUnits() | number }} unidades</span>
+              <span class="res-sub">+{{ getSimulatedTotalUnits() - (dashboard()?.weightedBreakEvenUnits || 0) | number }} sándwiches adicionales</span>
+            </div>
+            <div class="sim-result-box highlight-success">
+              <span class="res-label">Facturación Total Necesaria</span>
+              <span class="res-val text-success">${{ getSimulatedTotalRevenue() | number:'1.0-0' }}</span>
+              <span class="res-sub">Para lograr ${{ desiredProfitTarget() | number:'1.0-0' }} limpios</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- BANNER DE METAS POR PRODUCTO INDIVIDUAL -->
+        <div class="breakeven-banner">
+          <div class="banner-header">
+            <div class="banner-title-box">
+              <span class="target-icon">🎯</span>
+              <div>
+                <h3>Punto de Equilibrio Multiproducto (Desglose por Sándwich)</h3>
+                <p>Distribución de unidades mínimas a producir por cada línea según su peso en la demanda histórica.</p>
+              </div>
+            </div>
+            <div class="total-units-badge">
+              <span class="units-number">{{ dashboard()?.weightedBreakEvenUnits | number }}</span>
+              <span class="units-label">SÁNDWICHES / MES</span>
+            </div>
+          </div>
+
+          <div class="product-targets-grid">
+            @for (prod of dashboard()?.breakEvenProductBreakdown; track prod.productId) {
+              <div class="product-target-card">
+                <div class="target-card-header">
+                  <span class="prod-name">{{ prod.productName }}</span>
+                  <span class="share-badge">{{ prod.volumeSharePercent | number:'1.1-1' }}% del mix</span>
+                </div>
+                <div class="target-units-box">
+                  <strong class="target-units">{{ prod.requiredUnits | number }}</strong>
+                  <span class="target-units-label">unidades mínimas de absorción</span>
+                </div>
+                <div class="target-footer">
+                  <span>Precio prom: <strong>{{ prod.averagePrice | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong></span>
+                  <span>Meta $: <strong>{{ prod.requiredSalesAmount | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong></span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+  }
+
+  <!-- MODAL: AÑADIR INDICADOR PERSONALIZADO AL CMI -->
+  @if (showAddIndicatorModal()) {
+    <div class="modal-backdrop" (click)="closeAddIndicatorModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>➕ Añadir Indicador al Cuadro de Mando Integral</h3>
+          <button class="btn-close" (click)="closeAddIndicatorModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          @if (indicatorError()) {
+            <div class="alert alert-danger">{{ indicatorError() }}</div>
+          }
+
+          <div class="form-group">
+            <label>Perspectiva Estratégica *</label>
+            <select [ngModel]="newIndicatorPerspective()" (ngModelChange)="newIndicatorPerspective.set($event)" class="form-control">
+              <option value="FINANCIAL">Financiera (Rentabilidad, Liquidez, Costos)</option>
+              <option value="PROCESSES">Procesos Internos (Calidad, Tiempos, Producción)</option>
+              <option value="CLIENTS">Clientes (Demanda, Satisfacción, Ticket)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Nombre del Indicador (Columna 1) *</label>
+            <input type="text" [ngModel]="newIndicatorName()" (ngModelChange)="newIndicatorName.set($event)" placeholder="Ej. Tasa de Rotación de Sándwiches en Frío" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Explicación / ¿Qué Mide? (Columna 2) *</label>
+            <textarea rows="2" [ngModel]="newIndicatorExplanation()" (ngModelChange)="newIndicatorExplanation.set($event)" placeholder="Explica en lenguaje claro el impacto del indicador..." class="form-control"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Fórmula Matemática (Columna 3) *</label>
+            <input type="text" [ngModel]="newIndicatorFormula()" (ngModelChange)="newIndicatorFormula.set($event)" placeholder="Ej. (Sándwiches Vendidos / Stock en Cámara) × 100" class="form-control" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Valor Actual (Columna 4) *</label>
+              <input type="text" [ngModel]="newIndicatorValue()" (ngModelChange)="newIndicatorValue.set($event)" placeholder="Ej. 85.0% o $120.000" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Objetivo / Meta (Columna 5) *</label>
+              <input type="text" [ngModel]="newIndicatorGoal()" (ngModelChange)="newIndicatorGoal.set($event)" placeholder="Ej. Superar el 90% semanal" class="form-control" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeAddIndicatorModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveCustomIndicator()">Guardar Indicador</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

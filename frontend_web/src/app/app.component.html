@@ -1,0 +1,117 @@
+<div class="erp-layout">
+  <!-- SIDEBAR NAVEGACIÓN MODULAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo-box">🥪</div>
+      <div>
+        <h2 class="brand-name">Buen Bocado</h2>
+        <span class="brand-tag">Factory ERP • JIT 24h</span>
+      </div>
+    </div>
+
+    <nav class="nav-menu">
+      <span class="nav-section-label">GESTIÓN PRINCIPAL</span>
+
+      <a routerLink="/estrategia" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">🎯</span>
+        <div class="nav-text">
+          <span class="nav-title">Dirección y CMI</span>
+          <span class="nav-desc">Balanced Scorecard & Metas</span>
+        </div>
+      </a>
+
+      <a routerLink="/finanzas" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📊</span>
+        <div class="nav-text">
+          <span class="nav-title">Finanzas y P&L</span>
+          <span class="nav-desc">Estado de Resultados & Costeo</span>
+        </div>
+      </a>
+
+      <a routerLink="/ventas" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">🛒</span>
+        <div class="nav-text">
+          <span class="nav-title">Ventas y Clientes</span>
+          <span class="nav-desc">Mostrador POS & Pedidos</span>
+        </div>
+      </a>
+
+      <a routerLink="/catalogo" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">🥪</span>
+        <div class="nav-text">
+          <span class="nav-title">Catálogo & Combos</span>
+          <span class="nav-desc">Elaborados, Bebidas & Packs</span>
+        </div>
+      </a>
+
+      <a routerLink="/fabrica" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">🏭</span>
+        <div class="nav-text">
+          <span class="nav-title">Fábrica y Calidad</span>
+          <span class="nav-desc">Lotes MTO/MTS & Recetas BOM</span>
+        </div>
+      </a>
+
+      <a routerLink="/compras" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📦</span>
+        <div class="nav-text">
+          <span class="nav-title">Compras e Insumos</span>
+          <span class="nav-desc">Proveedores & Stock JIT</span>
+        </div>
+      </a>
+
+      <a routerLink="/logistica" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">🚚</span>
+        <div class="nav-text">
+          <span class="nav-title">Logística y Reparto</span>
+          <span class="nav-desc">Hojas de Ruta & Despacho</span>
+        </div>
+      </a>
+
+      <a routerLink="/configuracion" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">⚙️</span>
+        <div class="nav-text">
+          <span class="nav-title">Configuración</span>
+          <span class="nav-desc">Usuarios, Parámetros & Auditoría</span>
+        </div>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="server-status">
+        <span class="status-dot"></span>
+        <div class="status-info">
+          <strong>Servidor Spring Boot</strong>
+          <small>PostgreSQL & Redis Online</small>
+        </div>
+      </div>
+      <div class="version-tag">
+        v1.2.0 • Planta San Martín
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENEDOR PRINCIPAL CON BARRA SUPERIOR -->
+  <main class="main-wrapper">
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="factory-badge">🏭 Fábrica Artesanal de Sándwiches</span>
+        <span class="dispatch-badge">🚚 Despacho Matutino Activo (05:00 - 11:00 hs)</span>
+      </div>
+
+      <div class="topbar-right">
+        <div class="user-chip">
+          <span class="user-avatar">👤</span>
+          <div class="user-details">
+            <span class="user-name">Administrador Planta</span>
+            <span class="user-role">Acceso Gerencial Total</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="content-body">
+      <router-outlet></router-outlet>
+    </section>
+  </main>
+</div>

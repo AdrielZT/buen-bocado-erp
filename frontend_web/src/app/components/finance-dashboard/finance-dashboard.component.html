@@ -1,0 +1,342 @@
+<div class="module-view">
+  <div class="module-header">
+    <div>
+      <h1 class="module-title">📊 Finanzas y Estado de Resultados (P&L)</h1>
+      <p class="module-subtitle">Consolidación Contable, Costeo PEPS de Insumos, Gastos Operativos y Margen EBITDA</p>
+    </div>
+
+    <div class="header-actions">
+      <div class="date-filter-box">
+        <label>Período:</label>
+        <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" />
+        <span>a</span>
+        <input type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" />
+        <button class="btn btn-primary btn-sm" (click)="loadData()" [disabled]="isLoading()">Filtrar</button>
+      </div>
+
+      <button class="btn btn-expense" (click)="openExpenseModal()">
+        ➕ Registrar Gasto
+      </button>
+
+      <button class="btn btn-success" (click)="exportExcel()" [disabled]="isLoading() || !dashboard()">
+        📥 Exportar a Excel
+      </button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger">{{ errorMessage() }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="loading-spinner">
+      <p>Consolidando Estado de Resultados...</p>
+    </div>
+  } @else if (dashboard()) {
+
+    <!-- FINANCIAL CARDS -->
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Ventas Netas Despachadas</span>
+          <span class="badge">Facturación Neta</span>
+        </div>
+        <div class="card-value">{{ dashboard()?.totalSales | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+        <div class="card-subtext">Bruto: {{ dashboard()?.grossSales | currency:'ARS':'symbol-narrow':'1.0-0' }} | Mermas: ({{ dashboard()?.totalReturnsAmount | currency:'ARS':'symbol-narrow':'1.0-0' }})</div>
+      </div>
+
+      <div class="card highlight">
+        <div class="card-header">
+          <span class="card-title">Utilidad Bruta Fabril</span>
+          <span class="badge success">{{ dashboard()?.grossMarginPercent | number:'1.1-2' }}%</span>
+        </div>
+        <div class="card-value">{{ dashboard()?.grossProfit | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+        <div class="card-subtext">Margen de contribución directa (BOM)</div>
+      </div>
+
+      <div class="card" [class.highlight-accent]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) >= 0" [class.highlight-danger]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0">
+        <div class="card-header">
+          <span class="card-title">Resultado Operativo</span>
+          <span class="badge" [class.warning]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0" [class.success]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) >= 0">
+            {{ ((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) >= 0 ? 'Superávit Operativo' : 'Déficit Operativo' }}
+          </span>
+        </div>
+        <div class="card-value" [class.text-danger]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0">
+          {{ (dashboard()?.operatingProfit ?? dashboard()?.ebitda) | currency:'ARS':'symbol-narrow':'1.0-0' }}
+        </div>
+        <div class="card-subtext">Margen Operativo: <strong>{{ (dashboard()?.operatingMarginPercent ?? ((dashboard()?.ebitda || 0) / (dashboard()?.totalSales || 1) * 100)) | number:'1.1-2' }}%</strong></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Punto de Equilibrio</span>
+          <span class="badge">Ponderado</span>
+        </div>
+        <div class="card-value">{{ dashboard()?.weightedBreakEvenAmount | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+        <div class="card-subtext">Meta: <strong>{{ dashboard()?.weightedBreakEvenUnits | number }} sándwiches</strong></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">NOF (Fondos Operativos)</span>
+          <span class="badge info">Liquidez</span>
+        </div>
+        <div class="card-value">{{ dashboard()?.nof | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+        <div class="card-subtext">Capital de Trabajo: {{ dashboard()?.workingCapital | currency:'ARS':'symbol-narrow':'1.0-0' }}</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">CMV Total Insumos</span>
+          <span class="badge">Costo PEPS</span>
+        </div>
+        <div class="card-value text-danger">({{ dashboard()?.totalCmv | currency:'ARS':'symbol-narrow':'1.0-0' }})</div>
+        <div class="card-subtext">{{ ((dashboard()?.totalCmv || 0) / (dashboard()?.totalSales || 1) * 100) | number:'1.1-1' }}% de las ventas</div>
+      </div>
+    </div>
+
+    <!-- CUADRO FORMAL: ESTADO DE RESULTADOS (P&L) -->
+    <div class="table-container">
+      <div class="table-header-info">
+        <div>
+          <h2>Estado de Resultados Operativo y Contable</h2>
+          <p class="table-hint">Haga clic en las líneas de CMV y Gastos para desplegar la composición analítica de insumos y comprobantes.</p>
+        </div>
+      </div>
+
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th style="width: 38%;">Línea Contable / Concepto</th>
+            <th style="width: 22%;">Categoría / Detalle</th>
+            <th style="width: 15%;" class="text-right">Monto ($ ARS)</th>
+            <th style="width: 12%;" class="text-right">% s/ Ventas</th>
+            <th style="width: 13%;" class="text-right">% s/ Rubro</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <!-- ================= 1. VENTAS FACTURADAS Y MERMAS ================= -->
+          <tr class="row-parent">
+            <td>
+              <strong class="text-primary font-bold">(+) Ventas Brutas Facturadas</strong>
+              <span class="count-tag">{{ dashboard()?.salesOrdersBreakdown?.length || 0 }} entregas</span>
+            </td>
+            <td><span class="badge-mini type-income">Facturación Bruta</span></td>
+            <td class="text-right text-success font-bold">{{ dashboard()?.grossSales | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td class="text-right font-bold">{{ ((dashboard()?.grossSales || 1) / (dashboard()?.totalSales || 1) * 100) | number:'1.2-2' }}%</td>
+            <td class="text-right text-muted">-</td>
+          </tr>
+
+          <tr class="row-parent clickable" (click)="toggleSection('returns')">
+            <td>
+              <span class="toggle-icon">{{ isExpanded('returns') ? '▼' : '▶' }}</span>
+              <strong class="text-warning font-bold">(-) Devoluciones y Mermas de Clientes (Punto 1)</strong>
+              <span class="count-tag">{{ dashboard()?.totalReturnsUnits || 0 }} unidades devueltas</span>
+            </td>
+            <td><span class="badge-mini type-cost">Merma en Frío</span></td>
+            <td class="text-right text-warning font-bold">({{ dashboard()?.totalReturnsAmount | currency:'ARS':'symbol-narrow':'1.2-2' }})</td>
+            <td class="text-right text-warning font-medium">{{ dashboard()?.returnRatePercent | number:'1.2-2' }}%</td>
+            <td class="text-right text-muted">-</td>
+          </tr>
+
+          <tr class="row-subtotal">
+            <td>
+              <strong class="text-success font-bold">(=) VENTAS NETAS REALES</strong>
+            </td>
+            <td><span class="badge-mini type-income">Base Ingreso Neto</span></td>
+            <td class="text-right text-success font-bold">{{ dashboard()?.totalSales | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td class="text-right font-bold">100.00%</td>
+            <td class="text-right text-muted">100.00%</td>
+          </tr>
+
+          <!-- ================= 2. CMV INSUMOS PEPS ================= -->
+          <tr class="row-parent clickable" (click)="toggleSection('cmv')">
+            <td>
+              <span class="toggle-icon">{{ isExpanded('cmv') ? '▼' : '▶' }}</span>
+              <strong class="text-danger">(-) Costo de Mercaderías Vendidas (CMV Insumos)</strong>
+              <span class="count-tag">{{ dashboard()?.rawMaterialCmvBreakdown?.length || 0 }} materias primas</span>
+            </td>
+            <td><span class="badge-mini type-cost">Costo Variable Insumos</span></td>
+            <td class="text-right text-danger font-bold">({{ dashboard()?.totalCmv | currency:'ARS':'symbol-narrow':'1.2-2' }})</td>
+            <td class="text-right text-danger font-medium">{{ ((dashboard()?.totalCmv || 0) / (dashboard()?.totalSales || 1) * 100) | number:'1.2-2' }}%</td>
+            <td class="text-right text-muted">100.00%</td>
+          </tr>
+
+          <!-- SUBITEMS: DESGLOSE DE MATERIAS PRIMAS PEPS -->
+          @if (isExpanded('cmv')) {
+            @for (mat of dashboard()?.rawMaterialCmvBreakdown; track mat.code) {
+              <tr class="row-child">
+                <td class="child-cell">
+                  <span class="tree-branch">└─</span>
+                  <div class="material-info">
+                    <span class="item-name">{{ mat.name }}</span>
+                    <small class="code-tag">{{ mat.code }}</small>
+                  </div>
+                </td>
+                <td>
+                  <span class="category-pill">{{ mat.category }}</span>
+                  <span class="qty-pill">{{ mat.quantityConsumed }} {{ mat.unitOfMeasure }}</span>
+                </td>
+                <td class="text-right font-medium text-danger">({{ mat.totalCost | currency:'ARS':'symbol-narrow':'1.2-2' }})</td>
+                <td class="text-right text-muted">{{ mat.percentOfSales | number:'1.2-2' }}%</td>
+                <td class="text-right">
+                  <span class="pill-percent parent-share">
+                    <strong>{{ mat.percentOfCmv | number:'1.2-2' }}%</strong>
+                  </span>
+                </td>
+              </tr>
+            }
+          }
+
+          <!-- ================= 3. UTILIDAD BRUTA ================= -->
+          <tr class="row-subtotal">
+            <td>
+              <strong class="font-bold">(=) UTILIDAD BRUTA FABRIL</strong>
+            </td>
+            <td>
+              <span class="badge-mini type-margin">Margen Contribución Directa</span>
+            </td>
+            <td class="text-right font-bold text-dark">{{ dashboard()?.grossProfit | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td class="text-right font-bold text-success">{{ dashboard()?.grossMarginPercent | number:'1.2-2' }}%</td>
+            <td class="text-right text-muted">-</td>
+          </tr>
+
+          <!-- ================= 4. GASTOS OPERATIVOS ================= -->
+          <tr class="row-parent clickable" (click)="toggleSection('expenses')">
+            <td>
+              <span class="toggle-icon">{{ isExpanded('expenses') ? '▼' : '▶' }}</span>
+              <strong class="text-danger">(-) Gastos Operativos Totales</strong>
+              <span class="count-tag">{{ dashboard()?.operatingExpensesBreakdown?.length || 0 }} comprobantes</span>
+              <button class="btn-table-add" (click)="$event.stopPropagation(); openExpenseModal()">+ Registrar Gasto</button>
+            </td>
+            <td><span class="badge-mini type-fixed">Gastos Fabriles / Operación</span></td>
+            <td class="text-right text-danger font-bold">({{ dashboard()?.totalOperatingExpenses | currency:'ARS':'symbol-narrow':'1.2-2' }})</td>
+            <td class="text-right text-danger font-medium">{{ ((dashboard()?.totalOperatingExpenses || 0) / (dashboard()?.totalSales || 1) * 100) | number:'1.2-2' }}%</td>
+            <td class="text-right text-muted">100.00%</td>
+          </tr>
+
+          <!-- SUBITEMS: DESGLOSE DE GASTOS CON COMPROBANTES -->
+          @if (isExpanded('expenses')) {
+            @for (exp of dashboard()?.operatingExpensesBreakdown; track exp.id) {
+              <tr class="row-child">
+                <td class="child-cell">
+                  <span class="tree-branch">└─</span>
+                  <div class="expense-info">
+                    <span class="order-date-tag">{{ exp.expenseDate }}</span>
+                    <strong class="item-name">{{ exp.concept }}</strong>
+                  </div>
+                </td>
+                <td>
+                  <span class="category-pill">{{ exp.category }}</span>
+                  @if (exp.voucherNumber) {
+                    <small class="detail-text">Fact: {{ exp.voucherNumber }}</small>
+                  }
+                </td>
+                <td class="text-right font-medium text-danger">({{ exp.amount | currency:'ARS':'symbol-narrow':'1.2-2' }})</td>
+                <td class="text-right text-muted">{{ exp.percentOfSales | number:'1.2-2' }}%</td>
+                <td class="text-right">
+                  <div class="cell-action-group">
+                    <span class="pill-percent parent-share">
+                      <strong>{{ exp.percentOfExpenses | number:'1.2-2' }}%</strong>
+                    </span>
+                    <button class="btn-icon-delete" title="Eliminar gasto" (click)="deleteExpense(exp.id)">🗑️</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+
+          <!-- ================= 5. RESULTADO OPERATIVO (Punto 5) ================= -->
+          <tr class="row-highlight">
+            <td>
+              <strong class="font-bold">(=) RESULTADO OPERATIVO</strong>
+            </td>
+            <td>
+              <span class="badge-mini" [class.type-margin]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) >= 0" [class.type-cost]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0">
+                Margen Operativo Fabril
+              </span>
+            </td>
+            <td class="text-right font-bold text-accent" [class.text-danger]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0">
+              {{ (dashboard()?.operatingProfit ?? dashboard()?.ebitda) | currency:'ARS':'symbol-narrow':'1.2-2' }}
+            </td>
+            <td class="text-right font-bold" [class.text-danger]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) < 0" [class.text-success]="((dashboard()?.operatingProfit ?? dashboard()?.ebitda) || 0) >= 0">
+              {{ (dashboard()?.operatingMarginPercent ?? ((dashboard()?.ebitda || 0) / (dashboard()?.totalSales || 1) * 100)) | number:'1.2-2' }}%
+            </td>
+            <td class="text-right text-muted">-</td>
+          </tr>
+
+          <!-- ================= 6. RESULTADO NETO (Punto 5) ================= -->
+          <tr>
+            <td>
+              <strong>(=) RESULTADO NETO FINAL</strong>
+            </td>
+            <td><span class="badge-mini type-income">Beneficio Neto</span></td>
+            <td class="text-right font-bold">{{ (dashboard()?.netProfit ?? dashboard()?.ebit) | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td class="text-right font-medium">{{ (dashboard()?.netMarginPercent ?? ((dashboard()?.ebit || 0) / (dashboard()?.totalSales || 1) * 100)) | number:'1.2-2' }}%</td>
+            <td class="text-right text-muted">-</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  }
+
+  <!-- MODAL REGISTRO DE GASTO -->
+  @if (showExpenseModal()) {
+    <div class="modal-backdrop" (click)="closeExpenseModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Registrar Gasto Operativo</h3>
+          <button class="btn-close" (click)="closeExpenseModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          @if (formError()) {
+            <div class="alert alert-danger">{{ formError() }}</div>
+          }
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Fecha del Gasto *</label>
+              <input type="date" [ngModel]="newExpenseDate()" (ngModelChange)="newExpenseDate.set($event)" />
+            </div>
+
+            <div class="form-group">
+              <label>Categoría *</label>
+              <select [ngModel]="newCategory()" (ngModelChange)="newCategory.set($event)">
+                @for (cat of categories; track cat) {
+                  <option [value]="cat">{{ cat }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Concepto / Detalle *</label>
+            <input type="text" placeholder="Ej: Compra de cajas térmicas de cartón corrugado" [ngModel]="newConcept()" (ngModelChange)="newConcept.set($event)" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Monto ($ ARS) *</label>
+              <input type="number" step="0.01" min="1" placeholder="Ej: 35000" [ngModel]="newAmount()" (ngModelChange)="newAmount.set($event)" />
+            </div>
+
+            <div class="form-group">
+              <label>N° Comprobante / Factura</label>
+              <input type="text" placeholder="Ej: FAC-B-0004-000213" [ngModel]="newVoucherNumber()" (ngModelChange)="newVoucherNumber.set($event)" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeExpenseModal()" [disabled]="isSavingExpense()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveExpense()" [disabled]="isSavingExpense()">
+            {{ isSavingExpense() ? 'Guardando...' : 'Impactar en Estado de Resultados' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

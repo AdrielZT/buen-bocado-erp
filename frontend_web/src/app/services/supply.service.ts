@@ -1,0 +1,49 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import {
+  RawMaterialStock,
+  Supplier,
+  PurchaseInvoice,
+  RegisterPurchasePayload,
+  SupplyPlanning
+} from '../models/supply.model';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class SupplyService {
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = 'http://localhost:8080/api/v1/supplies';
+
+  getRawMaterials(): Observable<RawMaterialStock[]> {
+    return this.http.get<RawMaterialStock[]>(`${this.apiUrl}/materials`);
+  }
+
+  getSuppliers(): Observable<Supplier[]> {
+    return this.http.get<Supplier[]>(`${this.apiUrl}/suppliers`);
+  }
+
+  createSupplier(supplier: { businessName: string; taxId?: string; contactPhone?: string; email?: string }): Observable<Supplier> {
+    return this.http.post<Supplier>(`${this.apiUrl}/suppliers`, supplier);
+  }
+
+  getPurchases(startDate?: string, endDate?: string): Observable<PurchaseInvoice[]> {
+    let url = `${this.apiUrl}/purchases`;
+    const params: string[] = [];
+    if (startDate) params.push(`startDate=${encodeURIComponent(startDate)}`);
+    if (endDate) params.push(`endDate=${encodeURIComponent(endDate)}`);
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
+    }
+    return this.http.get<PurchaseInvoice[]>(url);
+  }
+
+  registerPurchase(payload: RegisterPurchasePayload): Observable<PurchaseInvoice> {
+    return this.http.post<PurchaseInvoice>(`${this.apiUrl}/purchases`, payload);
+  }
+
+  getSupplyPlanning(): Observable<SupplyPlanning> {
+    return this.http.get<SupplyPlanning>(`${this.apiUrl}/planning`);
+  }
+}

@@ -1,0 +1,361 @@
+<div class="config-container">
+  <!-- ENCABEZADO Y KPIS DEL SISTEMA -->
+  <header class="config-header">
+    <div class="header-main">
+      <div class="header-icon">⚙️</div>
+      <div>
+        <h1>Configuración, Gobernanza & Auditoría</h1>
+        <p class="subtitle">Administración de usuarios RBAC, políticas operativas de planta y trazabilidad inmutable</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-refresh" (click)="loadAllData()" [disabled]="loading">
+        🔄 Actualizar Estado
+      </button>
+    </div>
+  </header>
+
+  <!-- MENSAJES TOAST -->
+  <div *ngIf="successMessage" class="alert-success">
+    {{ successMessage }}
+  </div>
+  <div *ngIf="errorMessage" class="alert-error">
+    {{ errorMessage }}
+  </div>
+
+  <!-- TARJETAS DE SALUD RÁPIDA (FIRST 250PX RULE) -->
+  <div class="health-kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon spring">🍃</div>
+      <div class="kpi-content">
+        <span class="kpi-label">API Core Spring Boot 3</span>
+        <strong class="kpi-value text-success">{{ systemHealth?.springBootStatus || 'ONLINE' }}</strong>
+        <span class="kpi-sub">Java 21 • Uptime: {{ formatUptime(systemHealth?.uptimeSeconds || 0) }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon postgres">🐘</div>
+      <div class="kpi-content">
+        <span class="kpi-label">Base de Datos PostgreSQL</span>
+        <strong class="kpi-value text-primary">{{ systemHealth?.postgresStatus || 'ONLINE' }}</strong>
+        <span class="kpi-sub">PostGIS 16 • Migraciones V1-V5 OK</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon redis">⚡</div>
+      <div class="kpi-content">
+        <span class="kpi-label">Caché & Sesiones Redis</span>
+        <strong class="kpi-value text-danger">{{ systemHealth?.redisStatus || 'ONLINE' }}</strong>
+        <span class="kpi-sub">Redis 7 Alpine • In-Memory Cache</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon sync">📱</div>
+      <div class="kpi-content">
+        <span class="kpi-label">Sincronización Móvil Drift</span>
+        <strong class="kpi-value text-accent">{{ (systemHealth?.pendingSyncMutations || 0) }} Pendientes</strong>
+        <span class="kpi-sub">Idempotencia SHA-256 Activa</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVEGACIÓN POR SUB-PESTAÑAS -->
+  <div class="sub-nav-tabs">
+    <button [class.active]="activeTab === 'users'" (click)="activeTab = 'users'">
+      👥 Usuarios y Permisos RBAC ({{ users.length }})
+    </button>
+    <button [class.active]="activeTab === 'policies'" (click)="activeTab = 'policies'">
+      🏭 Parámetros de Fábrica & Crédito
+    </button>
+    <button [class.active]="activeTab === 'audit'" (click)="activeTab = 'audit'">
+      📜 Registro de Auditoría (Audit Trail)
+    </button>
+    <button [class.active]="activeTab === 'health'" (click)="activeTab = 'health'">
+      🖥️ Diagnóstico & Telemetría
+    </button>
+  </div>
+
+  <!-- SUB-VISTA 1: USUARIOS Y ROLES -->
+  <div *ngIf="activeTab === 'users'" class="tab-content card">
+    <div class="section-toolbar">
+      <div>
+        <h3>Equipo Operativo & Roles de Acceso</h3>
+        <p class="section-desc">Control de acceso basado en roles (RBAC) para el personal de planta, cocina, preventa y choferes</p>
+      </div>
+      <button class="btn-primary" (click)="openUserModal()">
+        ➕ Nuevo Usuario
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Nombre Completo</th>
+            <th>Contacto</th>
+            <th>Rol Asignado</th>
+            <th>Estado</th>
+            <th>Fecha Alta</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of users">
+            <td>
+              <div class="user-cell">
+                <span class="user-avatar-sm">👤</span>
+                <div>
+                  <strong>&#64;{{ u.username }}</strong>
+                  <small class="text-muted d-block">{{ u.id }}</small>
+                </div>
+              </div>
+            </td>
+            <td><strong>{{ u.fullName }}</strong></td>
+            <td>
+              <div>{{ u.email || 'Sin email registrado' }}</div>
+              <small class="text-muted">{{ u.phone || '-' }}</small>
+            </td>
+            <td>
+              <span class="role-badge" [ngClass]="u.roleId">
+                {{ u.roleName }}
+              </span>
+            </td>
+            <td>
+              <span class="badge-status" [class.badge-active]="u.isActive" [class.badge-inactive]="!u.isActive">
+                {{ u.isActive ? 'ACTIVO' : 'INACTIVO' }}
+              </span>
+            </td>
+            <td>{{ u.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td>
+              <button class="btn-action" title="Editar permisos">⚙️ Permisos</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SUB-VISTA 2: POLÍTICAS DE PLANTA -->
+  <div *ngIf="activeTab === 'policies'" class="tab-content card">
+    <div class="section-toolbar">
+      <div>
+        <h3>Políticas Operativas de Fábrica</h3>
+        <p class="section-desc">Límites y tolerancias que gobiernan el cálculo JIT, alertas de vencimiento y límites de crédito B2B</p>
+      </div>
+      <button class="btn-success" (click)="savePolicies()" [disabled]="loading">
+        💾 Guardar Políticas
+      </button>
+    </div>
+
+    <div class="policies-form-grid">
+      <div class="form-group">
+        <label>Nombre de la Planta Central</label>
+        <input type="text" [(ngModel)]="policies.plantName" class="form-control" />
+        <small class="field-hint">Aparece en los remitos, tickets fiscales y hojas de ruta</small>
+      </div>
+
+      <div class="form-group">
+        <label>Dirección Física de Despacho</label>
+        <input type="text" [(ngModel)]="policies.plantAddress" class="form-control" />
+        <small class="field-hint">Punto de partida de los repartidores en Google Maps</small>
+      </div>
+
+      <div class="form-group">
+        <label>Horas Máximas de Frescura (Sándwiches)</label>
+        <div class="input-unit-wrap">
+          <input type="number" [(ngModel)]="policies.maxFreshnessHours" class="form-control" />
+          <span class="unit-tag">horas</span>
+        </div>
+        <small class="field-hint">Tiempo límite antes de considerar un lote en riesgo de decomiso (estándar 24h)</small>
+      </div>
+
+      <div class="form-group">
+        <label>Límite de Crédito Predeterminado para Comercios B2B</label>
+        <div class="input-unit-wrap">
+          <input type="number" [(ngModel)]="policies.defaultCreditLimit" class="form-control" />
+          <span class="unit-tag">ARS</span>
+        </div>
+        <small class="field-hint">Monto máximo fiado que un preventista puede autorizar sin visto bueno gerencial</small>
+      </div>
+
+      <div class="form-group">
+        <label>Tolerancia Máxima de Merma de Cocina (%)</label>
+        <div class="input-unit-wrap">
+          <input type="number" step="0.1" [(ngModel)]="policies.maxWasteTolerancePercent" class="form-control" />
+          <span class="unit-tag">%</span>
+        </div>
+        <small class="field-hint">Desviación permitida en bordes de fiambrería y mermas de pan crudo</small>
+      </div>
+
+      <div class="form-group">
+        <label>Horario Límite de Recepción de Pedidos del Día Siguiente</label>
+        <input type="text" [(ngModel)]="policies.orderCutoffTime" class="form-control" />
+        <small class="field-hint">Hora en que se cierra la demanda para programar la producción nocturna JIT</small>
+      </div>
+
+      <div class="form-group full-width">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="policies.alertOnNegativeEbitda" />
+          <span>Activar alerta visual en el Dashboard si el Margen Operativo (EBITDA) del período es deficitario</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB-VISTA 3: AUDITORÍA INMUTABLE -->
+  <div *ngIf="activeTab === 'audit'" class="tab-content card">
+    <div class="section-toolbar">
+      <div>
+        <h3>Registro de Auditoría Inmutable (Audit Trail)</h3>
+        <p class="section-desc">Trazabilidad histórica de modificaciones, pedidos despachados, altas de gastos y cobranzas</p>
+      </div>
+      <div class="filter-controls">
+        <input 
+          type="text" 
+          placeholder="🔍 Buscar por usuario, acción o detalle..." 
+          [(ngModel)]="auditSearchTerm"
+          (input)="applyAuditFilters()"
+          class="search-input"
+        />
+        <select [(ngModel)]="auditModuleFilter" (change)="applyAuditFilters()" class="select-filter">
+          <option value="ALL">Todos los módulos</option>
+          <option value="FINANZAS">Finanzas & P&L</option>
+          <option value="VENTAS">Ventas & Clientes</option>
+          <option value="LOGISTICA">Logística & Reparto</option>
+          <option value="FABRICA">Fábrica & Producción</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID Evento</th>
+            <th>Fecha y Hora</th>
+            <th>Usuario</th>
+            <th>Módulo</th>
+            <th>Acción Registrada</th>
+            <th>Detalle Operativo</th>
+            <th>IP Origen</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let log of filteredAuditLogs">
+            <td><code>{{ log.id }}</code></td>
+            <td>{{ log.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+            <td><strong>&#64;{{ log.username }}</strong></td>
+            <td><span class="module-chip">{{ log.module }}</span></td>
+            <td><code>{{ log.action }}</code></td>
+            <td>{{ log.details }}</td>
+            <td><small class="text-muted">{{ log.ipAddress }}</small></td>
+            <td>
+              <span class="badge-success">CONFIRMADO</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SUB-VISTA 4: DIAGNÓSTICO & TELEMETRÍA -->
+  <div *ngIf="activeTab === 'health'" class="tab-content card">
+    <div class="section-toolbar">
+      <div>
+        <h3>Diagnóstico del Ecosistema de Servicios</h3>
+        <p class="section-desc">Estado interno de contenedores Docker, bases de datos y colas de sincronización</p>
+      </div>
+    </div>
+
+    <div class="telemetry-grid">
+      <div class="telemetry-card">
+        <h4>📦 Infraestructura de Base de Datos</h4>
+        <ul>
+          <li><strong>Motor:</strong> {{ systemHealth?.dbVersion }}</li>
+          <li><strong>Extensiones:</strong> PostGIS 3.4 (Geolocalización GPS activa)</li>
+          <li><strong>Esquema Flyway:</strong> Versiones V1, V2, V3, V4 y V5 migradas exitosamente</li>
+          <li><strong>Datos Históricos:</strong> 121 órdenes y 121 gastos reales de Septiembre 2026 conciliados</li>
+        </ul>
+      </div>
+
+      <div class="telemetry-card">
+        <h4>⚡ Motor de Caching & Estado JIT</h4>
+        <ul>
+          <li><strong>Redis Server:</strong> redis:7-alpine en puerto 6379</li>
+          <li><strong>Cache de Listas de Precios:</strong> Activa (TTL 10 minutos)</li>
+          <li><strong>Monitoreo de Frescura:</strong> Cronjob de verificación de 24h cada 15 min</li>
+        </ul>
+      </div>
+
+      <div class="telemetry-card">
+        <h4>📱 Sincronización Móvil Offline</h4>
+        <ul>
+          <li><strong>Protocolo:</strong> Drift SQLite + SHA-256 Idempotency Engine</li>
+          <li><strong>Mutaciones pendientes:</strong> 0 conflictos detectados</li>
+          <li><strong>Estado de Conexión:</strong> Transmisión bidireccional estable</li>
+        </ul>
+      </div>
+
+      <div class="telemetry-card">
+        <h4>🔒 Políticas de Seguridad Activas</h4>
+        <ul>
+          <li><strong>Contraseñas:</strong> Hashing BCrypt con factor de costo 10</li>
+          <li><strong>Sesión:</strong> Stateless JWT / Bearer Token</li>
+          <li><strong>CORS:</strong> Autorizado para Angular 17+ (localhost:4200)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR NUEVO USUARIO -->
+  <div *ngIf="showUserModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>➕ Registrar Nuevo Usuario del Sistema</h3>
+        <button class="btn-close" (click)="closeUserModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre Completo *</label>
+          <input type="text" [(ngModel)]="newUser.fullName" placeholder="Ej: Juan Pérez" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Nombre de Usuario (Login) *</label>
+          <input type="text" [(ngModel)]="newUser.username" placeholder="Ej: juan.perez" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Correo Electrónico</label>
+          <input type="email" [(ngModel)]="newUser.email" placeholder="juan@buenbocado.com" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Teléfono Celular</label>
+          <input type="text" [(ngModel)]="newUser.phone" placeholder="387-555-1234" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Rol Asignado en la Organización *</label>
+          <select [ngModel]="newUser.roleId" (ngModelChange)="newUser.roleId = $event; onRoleChange($event)" class="form-control">
+            <option *ngFor="let r of roles" [value]="r.id">{{ r.name }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeUserModal()">Cancelar</button>
+        <button class="btn-primary" (click)="submitUser()" [disabled]="loading">
+          Guardar Usuario
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

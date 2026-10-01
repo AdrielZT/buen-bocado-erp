@@ -1,0 +1,526 @@
+<div class="module-view">
+  <!-- HEADER GENERAL DE FÁBRICA -->
+  <div class="module-header">
+    <div class="header-titles">
+      <div class="badge-module">Módulo 5: Planta de Elaboración & Calidad</div>
+      <h1 class="module-title">🏭 Fábrica, Cocina & Control de Calidad</h1>
+      <p class="module-subtitle">Órdenes de producción híbridas (MTO/MTS), recetas maestras (BOM) dinámicas y auditoría de mermas.</p>
+    </div>
+
+    <div class="header-actions">
+      <button *ngIf="activeTab() === 'returns'" class="btn btn-danger" (click)="openReturnModal()">
+        🗑️ + Registrar Merma / Devolución
+      </button>
+      <button *ngIf="activeTab() === 'daily_logs'" class="btn btn-primary" (click)="openProductionModal()">
+        📝 + Asentar Parte Diario
+      </button>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="alert alert-success">
+      <span>✅ {{ successMessage() }}</span>
+      <button (click)="successMessage.set(null)">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="alert alert-danger">
+      <span>⚠️ {{ errorMessage() }}</span>
+      <button (click)="errorMessage.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- SUB-PESTAÑAS CANÓNICAS DE FÁBRICA -->
+  <nav class="subnav-tabs">
+    <button [class.active]="activeTab() === 'batches'" (click)="activeTab.set('batches')">
+      ⚙️ Órdenes de Fabricación ({{ productionOrders().length }})
+    </button>
+    <button [class.active]="activeTab() === 'recipes'" (click)="activeTab.set('recipes')">
+      📜 Recetas Maestras BOM ({{ recipes().length }})
+    </button>
+    <button [class.active]="activeTab() === 'daily_logs'" (click)="activeTab.set('daily_logs')">
+      ⏱️ Partes Diarios de Cocina ({{ productionLogs().length }})
+    </button>
+    <button [class.active]="activeTab() === 'returns'" (click)="activeTab.set('returns')">
+      🗑️ Auditoría de Mermas & Devoluciones
+    </button>
+  </nav>
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 1: ÓRDENES DE FABRICACIÓN (MTO + MTS)                   -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'batches') {
+    <div class="tab-pane-content">
+      <div class="table-container">
+        <div class="section-title-bar">
+          <div>
+            <h3>Cola de Elaboración en Cocina (Modelo Híbrido)</h3>
+            <p class="section-desc">Lotes MTO programados para despacho mayorista B2B y Lotes MTS para stock de cámara y venta directa (5 días de frescura).</p>
+          </div>
+          <button class="btn btn-primary btn-sm" (click)="openBatchModal()">+ Planificar Nuevo Lote</button>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nº de Lote</th>
+              <th>Producto a Elaborar</th>
+              <th>Tipo de Producción</th>
+              <th class="text-right">Meta Unidades</th>
+              <th class="text-right">Completadas</th>
+              <th>Fecha Programada</th>
+              <th>Estado Actual</th>
+              <th class="text-right">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let ord of productionOrders()">
+              <td class="font-mono font-bold">{{ ord.batchNumber }}</td>
+              <td class="font-semibold">{{ ord.productName }}</td>
+              <td>
+                <span class="badge" [class.b2b]="ord.orderType === 'MTO_B2B'" [class.b2c]="ord.orderType === 'MTS_STOCK'">
+                  {{ ord.orderType === 'MTO_B2B' ? 'Make-to-Order (B2B)' : 'Make-to-Stock (Mostrador)' }}
+                </span>
+              </td>
+              <td class="text-right font-bold">{{ ord.targetUnits }} u.</td>
+              <td class="text-right font-mono">{{ ord.completedUnits }} u.</td>
+              <td>{{ ord.scheduledDate }}</td>
+              <td>
+                <span class="status-pill"
+                      [class.optimo]="ord.status === 'ENVASADO_EN_FRIO'"
+                      [class.advertencia]="ord.status === 'EN_COCCION'"
+                      [class.critico]="ord.status === 'PLANIFICADO'">
+                  {{ ord.status === 'ENVASADO_EN_FRIO' ? 'En Cámara de Frío' : (ord.status === 'EN_COCCION' ? 'En Elaboración' : 'Planificado') }}
+                </span>
+              </td>
+              <td class="text-right">
+                <button *ngIf="ord.status !== 'ENVASADO_EN_FRIO'"
+                        class="btn-primary-xs"
+                        (click)="advanceOrderStatus(ord)">
+                  {{ ord.status === 'PLANIFICADO' ? '▶ Iniciar Cocina' : '❄️ Finalizar y Enfriar' }}
+                </button>
+                <span *ngIf="ord.status === 'ENVASADO_EN_FRIO'" class="badge success">✅ Listo</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 2: RECETAS MAESTRAS (BOM) DINÁMICAS                    -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'recipes') {
+    <div class="tab-pane-content">
+      <div class="recipes-grid">
+        <div *ngFor="let rec of recipes()" class="recipe-card">
+          <div class="recipe-card-header">
+            <div>
+              <span class="category-pill">{{ rec.category }}</span>
+              <h3 class="recipe-title">{{ rec.productName }}</h3>
+              <small class="text-muted">Vida útil: {{ rec.shelfLifeDays }} días en frío</small>
+            </div>
+            <div class="recipe-cost-box">
+              <span class="cost-lbl">Costo Teórico</span>
+              <strong class="cost-val">${{ rec.estimatedCostPerUnit | number:'1.0-0' }}</strong>
+            </div>
+          </div>
+
+          <div class="recipe-card-body">
+            <h4>Estructura de Insumos (BOM por Unidad):</h4>
+            <div class="ingredients-list">
+              <div *ngFor="let ing of rec.ingredients" class="ingredient-row">
+                <span class="ing-name">{{ ing.rawMaterialName }}</span>
+                <span class="ing-qty font-mono">{{ ing.quantity }} {{ ing.unitOfMeasure }}</span>
+                <span class="ing-cost font-mono text-muted">${{ ing.unitCost | number:'1.1-1' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="recipe-card-footer">
+            <span class="rendimiento-tag">Rendimiento: 100% de absorción de insumos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 3: PARTES DIARIOS DE COCINA                             -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'daily_logs') {
+    <div class="tab-pane-content">
+      <!-- Barra de Filtros de Fecha con Presets -->
+      <div class="filter-date-toolbar">
+        <div class="preset-buttons">
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'CURRENT'" (click)="applyDateFilter('CURRENT')">
+            📅 Mes Actual (Hoy)
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'AUGUST'" (click)="applyDateFilter('AUGUST')">
+            📅 Agosto 2026 (Real)
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'SEPTEMBER'" (click)="applyDateFilter('SEPTEMBER')">
+            📅 Septiembre 2026
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'ALL'" (click)="applyDateFilter('ALL')">
+            🌐 Todo el Historial
+          </button>
+        </div>
+
+        <div class="date-inputs-group">
+          <div class="date-input-field">
+            <label>Desde:</label>
+            <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event); applyDateFilter()" />
+          </div>
+          <div class="date-input-field">
+            <label>Hasta:</label>
+            <input type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event); applyDateFilter()" />
+          </div>
+          <button type="button" class="btn-filter-apply" (click)="applyDateFilter()">
+            🔍 Filtrar
+          </button>
+        </div>
+      </div>
+
+      <!-- Resumen del Período de Elaboración -->
+      <div class="factory-summary-strip">
+        <div class="summary-pill">
+          <span class="pill-label">Total Elaborado:</span>
+          <span class="pill-val font-bold text-success">{{ totalProducedUnitsInPeriod() | number }} unidades</span>
+        </div>
+        <div class="summary-pill">
+          <span class="pill-label">Productividad Media:</span>
+          <span class="pill-val font-bold">{{ averageProductivityInPeriod() }} u / h-h</span>
+        </div>
+        <div class="summary-pill">
+          <span class="pill-label">Partes Asentados:</span>
+          <span class="pill-val">{{ getFilteredProductionLogs().length }} turnos</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <div class="section-title-bar">
+          <div>
+            <h3>Registro de Elaboración Diaria & Rendimiento de Mano de Obra</h3>
+            <p class="section-desc">Mide la productividad real en unidades de sándwiches y elaborados por hora-hombre trabajada (u / h-h).</p>
+          </div>
+          <button class="btn btn-primary btn-sm" (click)="openProductionModal()">+ Nuevo Parte Diario</button>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Turno</th>
+              <th class="text-right">Operarios</th>
+              <th class="text-right">Horas Turno</th>
+              <th class="text-right">Horas-Hombre</th>
+              <th class="text-right">Pebetes</th>
+              <th class="text-right">Triples</th>
+              <th class="text-right">Total Elaborado</th>
+              <th class="text-right">Productividad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let log of getFilteredProductionLogs()">
+              <td class="font-mono">{{ log.date }}</td>
+              <td><span class="badge" [class.b2b]="log.shift === 'MAÑANA'">{{ log.shift }}</span></td>
+              <td class="text-right font-bold">{{ log.operatorsCount }} op.</td>
+              <td class="text-right">{{ log.hoursWorked }} hs</td>
+              <td class="text-right font-mono">{{ log.operatorsCount * log.hoursWorked }} h-h</td>
+              <td class="text-right font-bold">{{ log.pebetesUnits | number }} u.</td>
+              <td class="text-right font-bold">{{ log.triplesUnits | number }} u.</td>
+              <td class="text-right font-bold text-success">{{ (log.pebetesUnits + log.triplesUnits) | number }} u.</td>
+              <td class="text-right">
+                <span class="productivity-pill font-mono font-bold" [class.high]="log.productivity >= 85">
+                  {{ log.productivity }} u/h-h
+                </span>
+              </td>
+            </tr>
+            <tr *ngIf="getFilteredProductionLogs().length === 0">
+              <td colspan="9" class="empty-state">No se registran partes diarios en este período. Puedes pulsar "Agosto 2026 (Real)" para ver el histórico de fábrica.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- =================================================================== -->
+  <!-- SUB-PESTAÑA 4: AUDITORÍA DE MERMAS & DEVOLUCIONES                   -->
+  <!-- =================================================================== -->
+  @if (activeTab() === 'returns') {
+    <div class="tab-pane-content">
+      <!-- Barra de Filtros de Fecha con Presets -->
+      <div class="filter-date-toolbar">
+        <div class="preset-buttons">
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'CURRENT'" (click)="applyDateFilter('CURRENT')">
+            📅 Mes Actual (Hoy)
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'AUGUST'" (click)="applyDateFilter('AUGUST')">
+            📅 Agosto 2026 (Real - 4 Devoluciones / $233k)
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'SEPTEMBER'" (click)="applyDateFilter('SEPTEMBER')">
+            📅 Septiembre 2026
+          </button>
+          <button type="button" class="btn-preset" [class.active]="filterPreset() === 'ALL'" (click)="applyDateFilter('ALL')">
+            🌐 Todo el Historial
+          </button>
+        </div>
+
+        <div class="date-inputs-group">
+          <div class="date-input-field">
+            <label>Desde:</label>
+            <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event); applyDateFilter()" />
+          </div>
+          <div class="date-input-field">
+            <label>Hasta:</label>
+            <input type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event); applyDateFilter()" />
+          </div>
+          <button type="button" class="btn-filter-apply" (click)="applyDateFilter()">
+            🔍 Filtrar
+          </button>
+        </div>
+      </div>
+
+      <!-- Resumen del Período de Mermas -->
+      <div class="factory-summary-strip">
+        <div class="summary-pill">
+          <span class="pill-label">Unidades Devueltas:</span>
+          <span class="pill-val font-bold text-danger">{{ dashboard()?.totalReturnsUnits || 0 }} u.</span>
+        </div>
+        <div class="summary-pill">
+          <span class="pill-label">Monto Acreditado (Deducción Venta Bruta):</span>
+          <span class="pill-val font-bold text-danger">{{ dashboard()?.totalReturnsAmount || 0 | currency:'ARS':'symbol-narrow':'1.0-0' }}</span>
+        </div>
+        <div class="summary-pill">
+          <span class="pill-label">Tasa de Merma / Devolución:</span>
+          <span class="pill-val font-bold">{{ dashboard()?.returnRatePercent || 0 | number:'1.1-2' }}%</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <div class="section-title-bar">
+          <div>
+            <h3>Auditoría de Devoluciones y Mermas de Clientes (Punto 1 - Opción A)</h3>
+            <p class="section-desc">Deducidas directamente de las Ventas Brutas para obtener Ventas Netas según el criterio contable acordado.</p>
+          </div>
+          <button class="btn btn-danger btn-sm" (click)="openReturnModal()">+ Registrar Devolución</button>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Negocio / Kiosco</th>
+              <th>Producto Afectado</th>
+              <th class="text-right">Cantidad</th>
+              <th class="text-right">Monto Acreditado ($)</th>
+              <th class="text-right">Pérdida Insumos ($)</th>
+              <th>Motivo de Devolución</th>
+              <th class="text-right">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of dashboard()?.returnsBreakdown">
+              <td class="font-mono">{{ r.returnDate }}</td>
+              <td class="font-semibold">{{ r.clientName }}</td>
+              <td>{{ r.productName }}</td>
+              <td class="text-right font-bold text-danger">{{ r.quantity }} u.</td>
+              <td class="text-right font-mono font-bold text-danger">${{ r.creditedAmount | number:'1.0-0' }}</td>
+              <td class="text-right font-mono text-muted">${{ r.lossAmount | number:'1.0-0' }}</td>
+              <td>
+                <span class="badge warning">{{ r.reason === 'EXPIRED_FROZEN' ? 'Vencido en Frío' : 'Dañado / Defecto' }}</span>
+              </td>
+              <td class="text-right">
+                <button class="btn-icon-delete" title="Eliminar registro" (click)="deleteReturn(r.id)">🗑️</button>
+              </td>
+            </tr>
+            <tr *ngIf="!dashboard()?.returnsBreakdown || dashboard()?.returnsBreakdown?.length === 0">
+              <td colspan="8" class="empty-state">
+                No se registran devoluciones ni mermas en este período ({{ startDate() }} a {{ endDate() }}).
+                <button type="button" class="btn btn-primary-sm ml-2" (click)="applyDateFilter('AUGUST')">
+                  📅 Cargar Mermas de Agosto 2026 ($233.197)
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: NUEVA ORDEN DE FABRICACIÓN -->
+  @if (showBatchModal()) {
+    <div class="modal-backdrop" (click)="closeBatchModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>⚙️ Planificar Nueva Orden de Fabricación</h3>
+          <button class="btn-close" (click)="closeBatchModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Producto a Elaborar:</label>
+            <input type="text" [ngModel]="newBatchProduct()" (ngModelChange)="newBatchProduct.set($event)" class="form-control" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Categoría:</label>
+              <select [ngModel]="newBatchCategory()" (ngModelChange)="newBatchCategory.set($event)" class="form-control">
+                <option value="PEBETE">Pebete</option>
+                <option value="TRIPLE_MIGA">Triple de Miga</option>
+                <option value="PIZZA_FRIA">Pizza Fría</option>
+                <option value="ROTISERIA">Rotisería / Otros</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label>Modelo de Producción:</label>
+              <select [ngModel]="newBatchType()" (ngModelChange)="newBatchType.set($event)" class="form-control">
+                <option value="MTO_B2B">Make-to-Order (MTO - Pedidos B2B Mayorista)</option>
+                <option value="MTS_STOCK">Make-to-Stock (MTS - Stock Mostrador)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Meta de Unidades a Producir:</label>
+              <input type="number" min="1" [ngModel]="newBatchUnits()" (ngModelChange)="newBatchUnits.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Fecha Programada de Cocina:</label>
+              <input type="date" [ngModel]="newBatchDate()" (ngModelChange)="newBatchDate.set($event)" class="form-control" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeBatchModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveBatchOrder()">Planificar Lote</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: PARTE DIARIO DE COCINA -->
+  @if (showProductionModal()) {
+    <div class="modal-backdrop" (click)="closeProductionModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>📝 Asentar Parte Diario de Cocina</h3>
+          <button class="btn-close" (click)="closeProductionModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Fecha del Turno:</label>
+              <input type="date" [ngModel]="logDate()" (ngModelChange)="logDate.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Turno:</label>
+              <select [ngModel]="logShift()" (ngModelChange)="logShift.set($event)" class="form-control">
+                <option value="MAÑANA">Mañana (06:00 - 13:00)</option>
+                <option value="TARDE">Tarde (13:00 - 20:00)</option>
+                <option value="NOCHE">Noche (Especial JIT)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Operarios en Cocina:</label>
+              <input type="number" min="1" [ngModel]="logOperators()" (ngModelChange)="logOperators.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Horas Trabajadas:</label>
+              <input type="number" min="1" step="0.5" [ngModel]="logHours()" (ngModelChange)="logHours.set($event)" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Pebetes Elaborados (u):</label>
+              <input type="number" min="0" [ngModel]="logPebetes()" (ngModelChange)="logPebetes.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Triples Elaborados (u):</label>
+              <input type="number" min="0" [ngModel]="logTriples()" (ngModelChange)="logTriples.set($event)" class="form-control" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeProductionModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveProductionLog()">Guardar Parte</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: MERMA / DEVOLUCIÓN -->
+  @if (showReturnModal()) {
+    <div class="modal-backdrop" (click)="closeReturnModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>🗑️ Registrar Merma o Devolución</h3>
+          <button class="btn-close" (click)="closeReturnModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          @if (returnError()) {
+            <div class="alert alert-danger">{{ returnError() }}</div>
+          }
+
+          <div class="form-group">
+            <label>Cliente que devuelve:</label>
+            <select [ngModel]="returnClientId()" (ngModelChange)="returnClientId.set($event)" class="form-control">
+              @for (c of clients(); track c.id) {
+                <option [value]="c.id">{{ c.businessName }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Producto Devuelto:</label>
+            <select [ngModel]="returnProductId()" (ngModelChange)="returnProductId.set($event)" class="form-control">
+              @for (p of products(); track p.id) {
+                <option [value]="p.id">{{ p.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Cantidad (unidades):</label>
+              <input type="number" min="1" [ngModel]="returnQuantity()" (ngModelChange)="returnQuantity.set($event)" class="form-control" />
+            </div>
+            <div class="form-group flex-1">
+              <label>Fecha Devolución:</label>
+              <input type="date" [ngModel]="returnDate()" (ngModelChange)="returnDate.set($event)" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Motivo:</label>
+            <select [ngModel]="returnReason()" (ngModelChange)="returnReason.set($event)" class="form-control">
+              <option value="EXPIRED_FROZEN">Vencido en frío (superó límite)</option>
+              <option value="DAMAGED_PACKAGING">Packaging dañado en reparto</option>
+              <option value="QUALITY_DEFECT">Falla de frío / textura</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeReturnModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveReturn()" [disabled]="isSavingReturn()">
+            {{ isSavingReturn() ? 'Guardando...' : 'Asentar Merma' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

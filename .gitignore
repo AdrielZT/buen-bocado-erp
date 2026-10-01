@@ -1,0 +1,40 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Node & Frontend
+node_modules/
+.angular/
+dist/
+tmp/
+out-tsc/
+.npm/
+
+# Java & Backend
+target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Database & Docker volumes
+postgres_data/
+*.db
+*.sqlite
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# Antigravity Scratch / Logs / Dumps
+.system_generated/
+*.log
+excel_dump/
+scratch/
