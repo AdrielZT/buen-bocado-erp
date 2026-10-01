@@ -14,7 +14,9 @@ import {
 })
 export class SupplyService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/api/v1/supplies';
+  private readonly apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '4200'
+    ? 'http://localhost:8080/api/v1/supplies'
+    : '/api/v1/supplies';
 
   getRawMaterials(): Observable<RawMaterialStock[]> {
     return this.http.get<RawMaterialStock[]>(`${this.apiUrl}/materials`);

@@ -8,7 +8,9 @@ import { FinanceDashboard, OperatingExpense, ClientOption, ProductOption } from 
 })
 export class FinanceService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/api/v1/finance';
+  private readonly apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '4200'
+    ? 'http://localhost:8080/api/v1/finance'
+    : '/api/v1/finance';
 
   getDashboard(startDate: string, endDate: string): Observable<FinanceDashboard> {
     const params = new HttpParams()

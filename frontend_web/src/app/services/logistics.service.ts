@@ -8,7 +8,9 @@ import { LogisticsRouteSheet, DeliveryStop } from '../models/logistics.model';
 })
 export class LogisticsService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/api/v1/logistics';
+  private readonly apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '4200'
+    ? 'http://localhost:8080/api/v1/logistics'
+    : '/api/v1/logistics';
 
   getRouteSheet(startDate: string, endDate: string): Observable<LogisticsRouteSheet> {
     const params = new HttpParams()
