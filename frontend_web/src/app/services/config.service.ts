@@ -8,7 +8,9 @@ import { UserDto, PlantPolicyDto, AuditLogDto, SystemHealthDto } from '../models
 })
 export class ConfigService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/v1/config';
+  private apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '4200'
+    ? 'http://localhost:8080/api/v1/config'
+    : '/api/v1/config';
 
   getUsers(): Observable<UserDto[]> {
     return this.http.get<UserDto[]>(`${this.apiUrl}/users`);
