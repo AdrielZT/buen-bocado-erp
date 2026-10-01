@@ -25,13 +25,9 @@ COPY --from=builder /workspace/app/target/*.jar app.jar
 ENV PORT=8080
 EXPOSE 8080
 
-# Flags de afinación de JVM para Cloud Run (Límite estricto 512MB RAM)
+# Flags de JVM optimizados para contenedores
 ENTRYPOINT ["java", \
-  "-XX:+UseSerialGC", \
-  "-Xms128m", \
-  "-Xmx384m", \
-  "-XX:MaxMetaspaceSize=96m", \
-  "-XX:+TieredCompilation", \
-  "-XX:TieredStopAtLevel=1", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
   "-Djava.security.egd=file:/dev/./urandom", \
   "-jar", "app.jar"]
