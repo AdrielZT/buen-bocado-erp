@@ -43,9 +43,9 @@
 
   @if (isLoading()) {
     <div class="loading-spinner">
-      <p>Consolidando indicadores estratégicos...</p>
+      <p>⏳ Consolidando indicadores estratégicos en tiempo real...</p>
     </div>
-  } @else if (dashboard()) {
+  }
 
     <!-- =================================================================== -->
     <!-- SUB-PESTAÑA 1: TABLERO EJECUTIVO (VISIÓN 30s)                       -->
@@ -355,8 +355,6 @@
         </div>
       </div>
     }
-
-  }
 
   <!-- MODAL: AÑADIR INDICADOR PERSONALIZADO AL CMI -->
   @if (showAddIndicatorModal()) {

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, timeout } from 'rxjs';
 import { FinanceDashboard, OperatingExpense, ClientOption, ProductOption } from '../models/finance.model';
 
 @Injectable({
@@ -17,7 +17,9 @@ export class FinanceService {
       .set('startDate', startDate)
       .set('endDate', endDate);
 
-    return this.http.get<FinanceDashboard>(`${this.apiUrl}/dashboard`, { params });
+    return this.http.get<FinanceDashboard>(`${this.apiUrl}/dashboard`, { params }).pipe(
+      timeout(10000)
+    );
   }
 
   downloadExcel(startDate: string, endDate: string): Observable<Blob> {

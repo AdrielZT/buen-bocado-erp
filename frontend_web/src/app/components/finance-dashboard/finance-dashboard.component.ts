@@ -68,7 +68,7 @@ export class FinanceDashboardComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error cargando métricas financieras:', err);
-        this.errorMessage.set('No se pudo conectar con el servidor Spring Boot (http://localhost:8080).');
+        this.errorMessage.set('El servidor tardó más de 10s en responder o está iniciando la base de datos. Puedes reintentar haciendo clic en Filtrar.');
         this.isLoading.set(false);
       }
     });

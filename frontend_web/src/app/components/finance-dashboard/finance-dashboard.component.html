@@ -30,9 +30,9 @@
 
   @if (isLoading()) {
     <div class="loading-spinner">
-      <p>Consolidando Estado de Resultados...</p>
+      <p>⏳ Consolidando Estado de Resultados en tiempo real...</p>
     </div>
-  } @else if (dashboard()) {
+  }
 
     <!-- FINANCIAL CARDS -->
     <div class="cards-grid">
@@ -306,8 +306,6 @@
         </tbody>
       </table>
     </div>
-
-  }
 
   <!-- MODAL REGISTRO DE GASTO -->
   @if (showExpenseModal()) {
